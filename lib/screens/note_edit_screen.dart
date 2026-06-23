@@ -5,6 +5,7 @@ import '../folder.dart';
 import '../database_helper.dart';
 import '../notification_service.dart';
 import '../note_colors.dart';
+import '../widgets/wheel_time_picker.dart';
 
 class NoteEditScreen extends StatefulWidget {
   final Note? note;
@@ -23,6 +24,9 @@ class _NoteEditScreenState extends State<NoteEditScreen> {
   bool _pinned = false;
   int? _folderId;
   List<NoteFolder> _folders = [];
+  // Stan rozwiniecia zwijanych sekcji
+  bool _colorExpanded = false;
+  bool _folderExpanded = false;
 
   @override
   void initState() {
@@ -38,6 +42,13 @@ class _NoteEditScreenState extends State<NoteEditScreen> {
     _pinned = widget.note?.pinned ?? false;
     _folderId = widget.note?.folderId ?? widget.defaultFolderId;
     _loadFolders();
+  }
+
+  // Nazwa aktualnie wybranego folderu (do podpisu zwinietej sekcji)
+  String _folderName() {
+    if (_folderId == null) return 'Bez folderu';
+    final f = _folders.where((f) => f.id == _folderId);
+    return f.isEmpty ? 'Bez folderu' : f.first.name;
   }
 
   Future<void> _loadFolders() async {
@@ -67,10 +78,10 @@ class _NoteEditScreenState extends State<NoteEditScreen> {
     if (date == null) return;
     if (!mounted) return;
 
-    final time = await showTimePicker(
+    final time = await showDialog<TimeOfDay>(
       context: context,
-      initialTime: TimeOfDay.fromDateTime(initialDate),
-      helpText: 'Wybierz godzine',
+      builder: (_) =>
+          WheelTimePicker(initial: TimeOfDay.fromDateTime(initialDate)),
     );
     if (time == null) return;
 
@@ -200,7 +211,7 @@ class _NoteEditScreenState extends State<NoteEditScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    if (reminderText != null)
+                    if (reminderText != null) ...[
                       Row(children: [
                         Expanded(
                             child: Text(reminderText,
@@ -210,17 +221,9 @@ class _NoteEditScreenState extends State<NoteEditScreen> {
                             icon: const Icon(Icons.close),
                             tooltip: 'Usun przypomnienie',
                             onPressed: _clearReminder),
-                      ])
-                    else
-                      Text('Brak - nacisnij przycisk ponizej',
-                          style: Theme.of(context)
-                              .textTheme
-                              .bodyMedium
-                              ?.copyWith(
-                                  color: Theme.of(context)
-                                      .colorScheme
-                                      .outline)),
-                    const SizedBox(height: 8),
+                      ]),
+                      const SizedBox(height: 8),
+                    ],
                     FilledButton.tonalIcon(
                       onPressed: _pickReminder,
                       icon: const Icon(Icons.alarm_add),
@@ -234,10 +237,16 @@ class _NoteEditScreenState extends State<NoteEditScreen> {
 
               const SizedBox(height: 12),
 
-              // Wybor koloru
-              _sectionCard(
+              // Wybor koloru (zwijany)
+              _collapsibleSection(
                 icon: Icons.palette_outlined,
                 title: 'Kolor',
+                expanded: _colorExpanded,
+                onToggle: () =>
+                    setState(() => _colorExpanded = !_colorExpanded),
+                subtitle: _colorIndex == 0
+                    ? 'Domyslny'
+                    : NoteColors.names[_colorIndex],
                 child: Wrap(
                   spacing: 10,
                   runSpacing: 10,
@@ -260,14 +269,9 @@ class _NoteEditScreenState extends State<NoteEditScreen> {
                             width: selected ? 3 : 1,
                           ),
                         ),
-                        child: i == 0
-                            ? Icon(Icons.block,
-                                size: 18,
-                                color:
-                                    Theme.of(context).colorScheme.outline)
-                            : (selected
-                                ? const Icon(Icons.check, size: 18)
-                                : null),
+                        child: selected
+                            ? const Icon(Icons.check, size: 18)
+                            : null,
                       ),
                     );
                   }),
@@ -276,10 +280,14 @@ class _NoteEditScreenState extends State<NoteEditScreen> {
 
               const SizedBox(height: 12),
 
-              // Wybor folderu
-              _sectionCard(
+              // Wybor folderu (zwijany)
+              _collapsibleSection(
                 icon: Icons.folder_outlined,
                 title: 'Folder',
+                expanded: _folderExpanded,
+                onToggle: () =>
+                    setState(() => _folderExpanded = !_folderExpanded),
+                subtitle: _folderName(),
                 child: DropdownButton<int?>(
                   value: _folderId,
                   isExpanded: true,
@@ -301,6 +309,7 @@ class _NoteEditScreenState extends State<NoteEditScreen> {
     );
   }
 
+  // Sekcja zawsze widoczna (np. przypomnienie)
   Widget _sectionCard({
     required IconData icon,
     required String title,
@@ -322,6 +331,63 @@ class _NoteEditScreenState extends State<NoteEditScreen> {
             child,
           ],
         ),
+      ),
+    );
+  }
+
+  // Sekcja zwijana - tresc pojawia sie po klliknieciu naglowka
+  Widget _collapsibleSection({
+    required IconData icon,
+    required String title,
+    required bool expanded,
+    required VoidCallback onToggle,
+    required Widget child,
+    String? subtitle, // krotki opis widoczny gdy zwiniete
+  }) {
+    return Card(
+      color: Theme.of(context).colorScheme.surface.withOpacity(0.6),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          InkWell(
+            onTap: onToggle,
+            child: Padding(
+              padding: const EdgeInsets.all(12),
+              child: Row(
+                children: [
+                  Icon(icon, color: Theme.of(context).colorScheme.primary),
+                  const SizedBox(width: 8),
+                  Text(title,
+                      style: Theme.of(context).textTheme.titleMedium),
+                  const Spacer(),
+                  if (subtitle != null && !expanded)
+                    Flexible(
+                      child: Text(
+                        subtitle,
+                        style: Theme.of(context)
+                            .textTheme
+                            .bodySmall
+                            ?.copyWith(
+                                color: Theme.of(context)
+                                    .colorScheme
+                                    .outline),
+                        overflow: TextOverflow.ellipsis,
+                        textAlign: TextAlign.right,
+                      ),
+                    ),
+                  Icon(expanded
+                      ? Icons.keyboard_arrow_up
+                      : Icons.keyboard_arrow_down),
+                ],
+              ),
+            ),
+          ),
+          if (expanded)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
+              child: child,
+            ),
+        ],
       ),
     );
   }
