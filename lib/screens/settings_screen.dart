@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
 import '../notification_service.dart';
 import '../backup_service.dart';
+import '../settings_store.dart';
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
@@ -12,11 +14,51 @@ class SettingsScreen extends StatefulWidget {
 class _SettingsScreenState extends State<SettingsScreen> {
   ReminderStyle? _style;
   bool _busy = false;
+  bool _autoBackup = false;
+  String? _autoBackupPath;
+  int? _lastBackupMs;
 
   @override
   void initState() {
     super.initState();
     _loadStyle();
+    _loadBackupSettings();
+  }
+
+  Future<void> _loadBackupSettings() async {
+    final enabled = await SettingsStore.isAutoBackupEnabled();
+    final path = await SettingsStore.getAutoBackupPath();
+    final last = await SettingsStore.getLastBackupMs();
+    if (!mounted) return;
+    setState(() {
+      _autoBackup = enabled;
+      _autoBackupPath = path;
+      _lastBackupMs = last;
+    });
+  }
+
+  Future<void> _toggleAutoBackup(bool value) async {
+    if (value) {
+      // Wlaczajac, najpierw kazemy wybrac folder
+      final dir = await BackupService.pickBackupFolder();
+      if (dir == null) {
+        // anulowano - nie wlaczamy
+        return;
+      }
+      await SettingsStore.setAutoBackupPath(dir);
+      await SettingsStore.setAutoBackupEnabled(true);
+    } else {
+      await SettingsStore.setAutoBackupEnabled(false);
+    }
+    _loadBackupSettings();
+  }
+
+  Future<void> _changeBackupFolder() async {
+    final dir = await BackupService.pickBackupFolder();
+    if (dir != null) {
+      await SettingsStore.setAutoBackupPath(dir);
+      _loadBackupSettings();
+    }
   }
 
   Future<void> _loadStyle() async {
@@ -174,6 +216,66 @@ class _SettingsScreenState extends State<SettingsScreen> {
                             ],
                           ),
                         ),
+
+                        const SizedBox(height: 16),
+                        Padding(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 8, vertical: 8),
+                          child: Text('Automatyczny backup',
+                              style:
+                                  Theme.of(context).textTheme.titleMedium),
+                        ),
+                        Card(
+                          child: Column(
+                            children: [
+                              SwitchListTile(
+                                secondary:
+                                    const Icon(Icons.cloud_sync_outlined),
+                                title: const Text('Automatyczny backup'),
+                                subtitle: Text(_autoBackup
+                                    ? 'Wlaczony - kopia raz dziennie przy starcie'
+                                    : 'Wylaczony'),
+                                value: _autoBackup,
+                                onChanged: _toggleAutoBackup,
+                              ),
+                              if (_autoBackup) ...[
+                                const Divider(height: 1),
+                                ListTile(
+                                  leading: const Icon(Icons.folder_outlined),
+                                  title: const Text('Folder kopii'),
+                                  subtitle: Text(_autoBackupPath ??
+                                      'Nie wybrano'),
+                                  trailing: const Icon(Icons.edit_outlined),
+                                  onTap: _changeBackupFolder,
+                                ),
+                                const Divider(height: 1),
+                                ListTile(
+                                  leading: const Icon(Icons.schedule),
+                                  title: const Text('Ostatnia kopia'),
+                                  subtitle: Text(_lastBackupMs == null
+                                      ? 'Jeszcze nie wykonano'
+                                      : DateFormat('dd.MM.yyyy, HH:mm').format(
+                                          DateTime.fromMillisecondsSinceEpoch(
+                                              _lastBackupMs!))),
+                                ),
+                              ],
+                            ],
+                          ),
+                        ),
+                        if (_autoBackup)
+                          Padding(
+                            padding: const EdgeInsets.all(8),
+                            child: Text(
+                              'Wskazowka: wybierz folder synchronizowany przez '
+                              'aplikacje Dysk Google, aby kopie trafialy do chmury. '
+                              'Aplikacja trzyma 5 ostatnich kopii.',
+                              style: Theme.of(context).textTheme.bodySmall
+                                  ?.copyWith(
+                                      color: Theme.of(context)
+                                          .colorScheme
+                                          .outline),
+                            ),
+                          ),
 
                         const SizedBox(height: 16),
                         Card(

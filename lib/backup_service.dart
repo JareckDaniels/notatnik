@@ -57,6 +57,43 @@ class BackupService {
     return file.path;
   }
 
+  // Pozwala wybrac folder na backupy. Zwraca sciezke albo null.
+  static Future<String?> pickBackupFolder() async {
+    return await FilePicker.platform.getDirectoryPath();
+  }
+
+  // Automatyczny backup do zapamietanego folderu.
+  // Trzyma maksymalnie [keep] najnowszych kopii (rotacja - kasuje stare).
+  // Zwraca sciezke zapisanego pliku albo null gdy sie nie udalo.
+  static Future<String?> autoBackup(String folderPath, {int keep = 5}) async {
+    try {
+      final dir = Directory(folderPath);
+      if (!await dir.exists()) return null;
+
+      final jsonStr = await _buildBackupJson();
+      final file = File('$folderPath/${_fileName()}');
+      await file.writeAsString(jsonStr);
+
+      // Rotacja: zostaw tylko [keep] najnowszych kopii auto/recznych
+      final backups = dir
+          .listSync()
+          .whereType<File>()
+          .where((f) => f.path.split('/').last.startsWith('notatki_kopia_'))
+          .toList();
+      // Sortuj po nazwie malejaco (nazwa zawiera date -> najnowsze pierwsze)
+      backups.sort((a, b) => b.path.compareTo(a.path));
+      for (int i = keep; i < backups.length; i++) {
+        try {
+          backups[i].deleteSync();
+        } catch (_) {}
+      }
+      return file.path;
+    } catch (e) {
+      debugPrint('Blad auto-backupu: $e');
+      return null;
+    }
+  }
+
   // Wynik importu do pokazania uzytkownikowi
   static Future<ImportResult> importBackup() async {
     final picked = await FilePicker.platform.pickFiles(
