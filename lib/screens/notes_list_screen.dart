@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_staggered_grid_view/flutter_staggered_grid_view.dart';
 import 'package:intl/intl.dart';
 import '../note.dart';
 import '../database_helper.dart';
@@ -7,8 +8,8 @@ import '../note_colors.dart';
 import 'note_edit_screen.dart';
 
 class NotesListScreen extends StatefulWidget {
-  final int? folderId; // null = nie filtruj po konkretnym folderze
-  final bool noFolderOnly; // true = tylko notatki bez folderu
+  final int? folderId;
+  final bool noFolderOnly;
   final String screenTitle;
 
   const NotesListScreen({
@@ -93,15 +94,13 @@ class _NotesListScreenState extends State<NotesListScreen> {
               : LayoutBuilder(
                   builder: (context, constraints) {
                     final columns = _columnsForWidth(constraints.maxWidth);
-                    return GridView.builder(
+                    // Masonry: kazda karta ma wysokosc dopasowana do tresci
+                    // (krotka notatka = niska karta), z limitem 5 linii w karcie.
+                    return MasonryGridView.count(
                       padding: const EdgeInsets.all(12),
-                      gridDelegate:
-                          SliverGridDelegateWithFixedCrossAxisCount(
-                        crossAxisCount: columns,
-                        crossAxisSpacing: 12,
-                        mainAxisSpacing: 12,
-                        childAspectRatio: 1.1,
-                      ),
+                      crossAxisCount: columns,
+                      mainAxisSpacing: 12,
+                      crossAxisSpacing: 12,
                       itemCount: _notes.length,
                       itemBuilder: (context, index) =>
                           _buildNoteCard(_notes[index]),
@@ -147,11 +146,14 @@ class _NotesListScreenState extends State<NotesListScreen> {
     return Card(
       color: cardColor,
       clipBehavior: Clip.antiAlias,
+      margin: EdgeInsets.zero,
       child: InkWell(
         onTap: () => _openEditor(note: note),
         child: Padding(
           padding: const EdgeInsets.all(14),
+          // Kolumna kurczy sie do wysokosci tresci (mainAxisSize.min)
           child: Column(
+            mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Row(
@@ -170,49 +172,57 @@ class _NotesListScreenState extends State<NotesListScreen> {
                           .textTheme
                           .titleMedium
                           ?.copyWith(fontWeight: FontWeight.w600),
-                      maxLines: 1,
+                      maxLines: 2,
                       overflow: TextOverflow.ellipsis,
                     ),
                   ),
-                  PopupMenuButton<String>(
-                    icon: const Icon(Icons.more_vert, size: 20),
-                    onSelected: (value) {
-                      if (value == 'delete') _deleteNote(note);
-                      if (value == 'pin') _togglePin(note);
-                    },
-                    itemBuilder: (_) => [
-                      PopupMenuItem(
-                        value: 'pin',
-                        child: Row(children: [
-                          Icon(
-                              note.pinned
-                                  ? Icons.push_pin_outlined
-                                  : Icons.push_pin,
-                              size: 20),
-                          const SizedBox(width: 8),
-                          Text(note.pinned ? 'Odepnij' : 'Przypnij'),
-                        ]),
-                      ),
-                      const PopupMenuItem(
-                        value: 'delete',
-                        child: Row(children: [
-                          Icon(Icons.delete_outline, size: 20),
-                          SizedBox(width: 8),
-                          Text('Usun'),
-                        ]),
-                      ),
-                    ],
+                  // Mniejszy obszar dotyku menu, by nie zawyzac wysokosci
+                  SizedBox(
+                    height: 28,
+                    width: 28,
+                    child: PopupMenuButton<String>(
+                      padding: EdgeInsets.zero,
+                      icon: const Icon(Icons.more_vert, size: 20),
+                      onSelected: (value) {
+                        if (value == 'delete') _deleteNote(note);
+                        if (value == 'pin') _togglePin(note);
+                      },
+                      itemBuilder: (_) => [
+                        PopupMenuItem(
+                          value: 'pin',
+                          child: Row(children: [
+                            Icon(
+                                note.pinned
+                                    ? Icons.push_pin_outlined
+                                    : Icons.push_pin,
+                                size: 20),
+                            const SizedBox(width: 8),
+                            Text(note.pinned ? 'Odepnij' : 'Przypnij'),
+                          ]),
+                        ),
+                        const PopupMenuItem(
+                          value: 'delete',
+                          child: Row(children: [
+                            Icon(Icons.delete_outline, size: 20),
+                            SizedBox(width: 8),
+                            Text('Usun'),
+                          ]),
+                        ),
+                      ],
+                    ),
                   ),
                 ],
               ),
-              const SizedBox(height: 6),
-              Expanded(
-                child: Text(
+              if (note.content.isNotEmpty) ...[
+                const SizedBox(height: 6),
+                Text(
                   note.content,
                   style: Theme.of(context).textTheme.bodyMedium,
-                  overflow: TextOverflow.fade,
+                  // Pokazuje maksymalnie 5 linijek, reszte ucina wielokropkiem
+                  maxLines: 5,
+                  overflow: TextOverflow.ellipsis,
                 ),
-              ),
+              ],
               if (hasReminder) ...[
                 const SizedBox(height: 8),
                 Row(
