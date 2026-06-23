@@ -74,6 +74,19 @@ class _FoldersScreenState extends State<FoldersScreen> {
     });
   }
 
+  // Formatuje date "po ludzku": dzis / wczoraj / data
+  String _formatDate(int ms) {
+    final d = DateTime.fromMillisecondsSinceEpoch(ms);
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    final that = DateTime(d.year, d.month, d.day);
+    final diff = today.difference(that).inDays;
+    if (diff == 0) return 'Dzis, ${DateFormat('HH:mm').format(d)}';
+    if (diff == 1) return 'Wczoraj, ${DateFormat('HH:mm').format(d)}';
+    if (diff < 7) return DateFormat('EEEE, HH:mm', 'pl').format(d);
+    return DateFormat('dd.MM.yyyy').format(d);
+  }
+
   // ---------- akcje notatek ----------
 
   Future<void> _openNote(Note note) async {
@@ -553,8 +566,18 @@ class _FoldersScreenState extends State<FoldersScreen> {
         ),
         // Notatki folderu widoczne tylko gdy otwarty
         if (f.expanded)
-          Padding(
-            padding: const EdgeInsets.only(left: 16, bottom: 8),
+          Container(
+            margin: const EdgeInsets.only(left: 12, bottom: 8, top: 2),
+            padding: const EdgeInsets.only(left: 8),
+            decoration: BoxDecoration(
+              // Pionowa linia po lewej - pokazuje "zawartosc folderu"
+              border: Border(
+                left: BorderSide(
+                  color: Theme.of(context).colorScheme.primary.withOpacity(0.4),
+                  width: 3,
+                ),
+              ),
+            ),
             child: notes.isEmpty
                 ? Padding(
                     padding: const EdgeInsets.all(8),
@@ -585,10 +608,11 @@ class _FoldersScreenState extends State<FoldersScreen> {
       key: key,
       color: cardColor,
       clipBehavior: Clip.antiAlias,
+      margin: const EdgeInsets.symmetric(vertical: 4),
       child: InkWell(
         onTap: () => _openNote(note),
         child: Padding(
-          padding: const EdgeInsets.fromLTRB(14, 10, 6, 10),
+          padding: const EdgeInsets.fromLTRB(12, 8, 4, 8),
           child: Row(
             children: [
               Expanded(
@@ -629,16 +653,19 @@ class _FoldersScreenState extends State<FoldersScreen> {
                             color: Theme.of(context).colorScheme.primary),
                       ),
                     if (note.content.isNotEmpty) ...[
-                      if (note.title.isNotEmpty) const SizedBox(height: 4),
+                      if (note.title.isNotEmpty) const SizedBox(height: 2),
                       Text(
                         note.content,
-                        style: Theme.of(context).textTheme.bodyMedium,
+                        style: Theme.of(context)
+                            .textTheme
+                            .bodyMedium
+                            ?.copyWith(height: 1.25),
                         maxLines: 5,
                         overflow: TextOverflow.ellipsis,
                       ),
                     ],
                     if (hasReminder) ...[
-                      const SizedBox(height: 6),
+                      const SizedBox(height: 4),
                       Row(
                         children: [
                           Icon(Icons.notifications_active,
@@ -657,6 +684,18 @@ class _FoldersScreenState extends State<FoldersScreen> {
                         ],
                       ),
                     ],
+                    // Malutka, ledwo widoczna data utworzenia
+                    const SizedBox(height: 4),
+                    Text(
+                      _formatDate(note.createdAt),
+                      style: TextStyle(
+                        fontSize: 10,
+                        color: Theme.of(context)
+                            .colorScheme
+                            .outline
+                            .withOpacity(0.7),
+                      ),
+                    ),
                   ],
                 ),
               ),

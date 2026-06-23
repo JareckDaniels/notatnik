@@ -4,7 +4,7 @@ import 'package:flutter/material.dart';
 // Kolory dobrane tak, by czytelnie wygladaly w trybie jasnym i ciemnym.
 class NoteColors {
   static const List<Color?> light = [
-    null, // 0 - domyslny (kolor karty z motywu)
+    Color(0xFFECEEF3), // 0 - domyslny: delikatnie szary, odrozniajacy od tla
     Color(0xFFFFCDD2), // czerwony
     Color(0xFFFFE0B2), // pomaranczowy
     Color(0xFFFFF9C4), // zolty
@@ -15,7 +15,7 @@ class NoteColors {
   ];
 
   static const List<Color?> dark = [
-    null,
+    Color(0xFF2A2F37), // 0 - domyslny: ciut jasniejszy niz tlo
     Color(0xFF5D3A3A),
     Color(0xFF5D4A2E),
     Color(0xFF5A552E),

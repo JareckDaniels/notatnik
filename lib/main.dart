@@ -1,11 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
+import 'package:intl/date_symbol_data_local.dart';
 import 'notification_service.dart';
 import 'database_helper.dart';
 import 'screens/folders_screen.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  // Dane formatowania dat dla jezyka polskiego (nazwy dni, miesiecy)
+  await initializeDateFormatting('pl', null);
   await NotificationService.instance.init();
   await NotificationService.instance.requestPermissions();
   // Czyszczenie kosza: usuwa notatki starsze niz 30 dni
