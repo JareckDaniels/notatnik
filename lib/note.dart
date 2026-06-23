@@ -8,6 +8,7 @@ class Note {
   final int colorIndex; // indeks koloru z palety (0 = domyslny)
   final bool pinned; // czy notatka przypieta na gorze
   final int? folderId; // przynaleznosc do folderu (null = bez folderu)
+  final int position; // reczna kolejnosc (mniejsze = wyzej)
 
   Note({
     this.id,
@@ -18,6 +19,7 @@ class Note {
     this.colorIndex = 0,
     this.pinned = false,
     this.folderId,
+    this.position = 0,
   });
 
   // Konwersja do mapy (zapis do bazy)
@@ -31,6 +33,7 @@ class Note {
       'colorIndex': colorIndex,
       'pinned': pinned ? 1 : 0,
       'folderId': folderId,
+      'position': position,
     };
   }
 
@@ -45,6 +48,7 @@ class Note {
       colorIndex: (map['colorIndex'] as int?) ?? 0,
       pinned: (map['pinned'] as int?) == 1,
       folderId: map['folderId'] as int?,
+      position: (map['position'] as int?) ?? 0,
     );
   }
 
@@ -64,6 +68,7 @@ class Note {
     int? colorIndex,
     bool? pinned,
     int? folderId,
+    int? position,
     bool clearReminder = false,
     bool clearFolder = false,
   }) {
@@ -76,6 +81,7 @@ class Note {
       colorIndex: colorIndex ?? this.colorIndex,
       pinned: pinned ?? this.pinned,
       folderId: clearFolder ? null : (folderId ?? this.folderId),
+      position: position ?? this.position,
     );
   }
 }

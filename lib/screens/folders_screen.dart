@@ -1,11 +1,14 @@
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
 import '../folder.dart';
+import '../note.dart';
 import '../database_helper.dart';
-import 'notes_list_screen.dart';
+import '../notification_service.dart';
+import '../note_colors.dart';
+import '../settings_store.dart';
 import 'note_edit_screen.dart';
 import 'settings_screen.dart';
 
-// Ekran glowny: lista folderow + skroty "Wszystkie" i "Bez folderu".
 class FoldersScreen extends StatefulWidget {
   const FoldersScreen({super.key});
 
@@ -15,79 +18,113 @@ class FoldersScreen extends StatefulWidget {
 
 class _FoldersScreenState extends State<FoldersScreen> {
   List<NoteFolder> _folders = [];
-  Map<int, int> _counts = {}; // folderId -> liczba notatek
-  int _allCount = 0;
-  int _noFolderCount = 0;
+  List<Note> _looseNotes = []; // notatki bez folderu
+  final Map<int, List<Note>> _folderNotes = {}; // notatki w folderach
+  final Map<int, int> _counts = {};
+  SortMode _sort = SortMode.manual;
   bool _loading = true;
+
+  // Wyszukiwanie
+  bool _searching = false;
+  final TextEditingController _searchCtrl = TextEditingController();
+  List<Note> _searchResults = [];
 
   @override
   void initState() {
     super.initState();
-    _load();
+    _init();
+  }
+
+  @override
+  void dispose() {
+    _searchCtrl.dispose();
+    super.dispose();
+  }
+
+  Future<void> _init() async {
+    _sort = await SettingsStore.getSortMode();
+    await _load();
   }
 
   Future<void> _load() async {
     setState(() => _loading = true);
     final folders = await DatabaseHelper.instance.getAllFolders();
-    final all = await DatabaseHelper.instance.getAllNotes();
-    final noFolder = await DatabaseHelper.instance.countNotesNoFolder();
-    final counts = <int, int>{};
+    final loose =
+        await DatabaseHelper.instance.getNotes(noFolder: true, sort: _sort);
+
+    _folderNotes.clear();
+    _counts.clear();
     for (final f in folders) {
       if (f.id != null) {
-        counts[f.id!] =
-            await DatabaseHelper.instance.countNotesInFolder(f.id!);
+        final notes = await DatabaseHelper.instance
+            .getNotes(folderId: f.id, sort: _sort);
+        _folderNotes[f.id!] = notes;
+        _counts[f.id!] = notes.length;
       }
     }
     if (!mounted) return;
     setState(() {
       _folders = folders;
-      _counts = counts;
-      _allCount = all.length;
-      _noFolderCount = noFolder;
+      _looseNotes = loose;
       _loading = false;
     });
   }
 
-  Future<void> _openNotes({int? folderId, bool noFolder = false, String? title}) async {
-    await Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (_) => NotesListScreen(
-          folderId: folderId,
-          noFolderOnly: noFolder,
-          screenTitle: title ?? 'Notatki',
-        ),
-      ),
-    );
-    _load(); // odswiez liczniki po powrocie
-  }
+  // ---------- akcje notatek ----------
 
-  // Szybkie utworzenie notatki z ekranu glownego (bez folderu)
-  Future<void> _addNote() async {
+  Future<void> _openNote(Note note) async {
     final changed = await Navigator.push<bool>(
       context,
-      MaterialPageRoute(
-        builder: (_) => const NoteEditScreen(),
-      ),
+      MaterialPageRoute(builder: (_) => NoteEditScreen(note: note)),
     );
     if (changed == true) _load();
   }
 
+  Future<void> _addNote({int? folderId}) async {
+    final changed = await Navigator.push<bool>(
+      context,
+      MaterialPageRoute(
+          builder: (_) => NoteEditScreen(defaultFolderId: folderId)),
+    );
+    if (changed == true) _load();
+  }
+
+  Future<void> _deleteNote(Note note) async {
+    if (note.id == null) return;
+    await NotificationService.instance.cancelReminder(note.id!);
+    await DatabaseHelper.instance.deleteNote(note.id!);
+    _load();
+  }
+
+  Future<void> _togglePin(Note note) async {
+    await DatabaseHelper.instance
+        .updateNote(note.copyWith(pinned: !note.pinned));
+    _load();
+  }
+
+  // ---------- akcje folderow ----------
+
   Future<void> _addFolder() async {
     final name = await _folderNameDialog();
     if (name == null || name.trim().isEmpty) return;
-    await DatabaseHelper.instance.insertFolder(
-      NoteFolder(name: name.trim(), createdAt: DateTime.now().millisecondsSinceEpoch),
-    );
+    await DatabaseHelper.instance.insertFolder(NoteFolder(
+        name: name.trim(),
+        createdAt: DateTime.now().millisecondsSinceEpoch));
     _load();
   }
 
   Future<void> _renameFolder(NoteFolder folder) async {
     final name = await _folderNameDialog(initial: folder.name);
     if (name == null || name.trim().isEmpty) return;
-    await DatabaseHelper.instance.updateFolder(
-      NoteFolder(id: folder.id, name: name.trim(), createdAt: folder.createdAt),
-    );
+    await DatabaseHelper.instance
+        .updateFolder(folder.copyWith(name: name.trim()));
+    _load();
+  }
+
+  Future<void> _toggleFolderExpanded(NoteFolder folder) async {
+    if (folder.id == null) return;
+    await DatabaseHelper.instance
+        .setFolderExpanded(folder.id!, !folder.expanded);
     _load();
   }
 
@@ -97,7 +134,7 @@ class _FoldersScreenState extends State<FoldersScreen> {
       builder: (_) => AlertDialog(
         title: const Text('Usunac folder?'),
         content: Text(
-            'Folder "${folder.name}" zostanie usuniety. Notatki w nim trafia do "Bez folderu".'),
+            'Folder "${folder.name}" zostanie usuniety. Notatki w nim trafia do listy bez folderu.'),
         actions: [
           TextButton(
               onPressed: () => Navigator.pop(context, false),
@@ -138,137 +175,505 @@ class _FoldersScreenState extends State<FoldersScreen> {
     );
   }
 
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Notatki'),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.settings),
-            tooltip: 'Ustawienia',
-            onPressed: () async {
-              await Navigator.push(
-                context,
-                MaterialPageRoute(builder: (_) => const SettingsScreen()),
-              );
-              _load();
-            },
-          ),
-        ],
-      ),
-      body: _loading
-          ? const Center(child: CircularProgressIndicator())
-          : Center(
-              child: ConstrainedBox(
-                constraints: const BoxConstraints(maxWidth: 900),
-                child: ListView(
-                  padding: const EdgeInsets.all(12),
-                  children: [
-                    _shortcutTile(
-                      icon: Icons.notes,
-                      title: 'Wszystkie notatki',
-                      count: _allCount,
-                      onTap: () => _openNotes(title: 'Wszystkie notatki'),
-                    ),
-                    _shortcutTile(
-                      icon: Icons.inbox_outlined,
-                      title: 'Bez folderu',
-                      count: _noFolderCount,
-                      onTap: () => _openNotes(
-                          noFolder: true, title: 'Bez folderu'),
-                    ),
-                    const Padding(
-                      padding: EdgeInsets.fromLTRB(8, 16, 8, 8),
-                      child: Text('Foldery',
-                          style: TextStyle(fontWeight: FontWeight.bold)),
-                    ),
-                    if (_folders.isEmpty)
-                      Padding(
-                        padding: const EdgeInsets.all(16),
-                        child: Text(
-                          'Brak folderow. Dodaj pierwszy przyciskiem ponizej.',
-                          style: TextStyle(
-                              color: Theme.of(context).colorScheme.outline),
-                        ),
-                      )
-                    else
-                      ..._folders.map((f) => _folderTile(f)),
-                  ],
-                ),
-              ),
+  // ---------- sortowanie ----------
+
+  Future<void> _pickSort() async {
+    final selected = await showModalBottomSheet<SortMode>(
+      context: context,
+      builder: (_) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Padding(
+              padding: EdgeInsets.all(16),
+              child: Text('Sortowanie',
+                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
             ),
-      floatingActionButton: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.end,
-        children: [
-          FloatingActionButton.extended(
-            heroTag: 'fab_note',
-            onPressed: _addNote,
-            icon: const Icon(Icons.add),
-            label: const Text('Nowa notatka'),
-          ),
-          const SizedBox(height: 12),
-          FloatingActionButton.extended(
-            heroTag: 'fab_folder',
-            onPressed: _addFolder,
-            icon: const Icon(Icons.create_new_folder_outlined),
-            label: const Text('Nowy folder'),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _shortcutTile({
-    required IconData icon,
-    required String title,
-    required int count,
-    required VoidCallback onTap,
-  }) {
-    return Card(
-      child: ListTile(
-        leading: Icon(icon, color: Theme.of(context).colorScheme.primary),
-        title: Text(title),
-        trailing: Text('$count',
-            style: TextStyle(color: Theme.of(context).colorScheme.outline)),
-        onTap: onTap,
-      ),
-    );
-  }
-
-  Widget _folderTile(NoteFolder f) {
-    final count = f.id != null ? (_counts[f.id!] ?? 0) : 0;
-    return Card(
-      child: ListTile(
-        leading: Icon(Icons.folder,
-            color: Theme.of(context).colorScheme.primary),
-        title: Text(f.name),
-        subtitle: Text('$count notatek'),
-        onTap: () => _openNotes(folderId: f.id, title: f.name),
-        trailing: PopupMenuButton<String>(
-          onSelected: (v) {
-            if (v == 'rename') _renameFolder(f);
-            if (v == 'delete') _deleteFolder(f);
-          },
-          itemBuilder: (_) => [
-            const PopupMenuItem(
-                value: 'rename',
-                child: Row(children: [
-                  Icon(Icons.edit_outlined, size: 20),
-                  SizedBox(width: 8),
-                  Text('Zmien nazwe')
-                ])),
-            const PopupMenuItem(
-                value: 'delete',
-                child: Row(children: [
-                  Icon(Icons.delete_outline, size: 20),
-                  SizedBox(width: 8),
-                  Text('Usun')
-                ])),
+            _sortTile(SortMode.manual, 'Wlasna kolejnosc (przeciaganie)',
+                Icons.drag_handle),
+            _sortTile(SortMode.newest, 'Najnowsze na gorze',
+                Icons.arrow_downward),
+            _sortTile(SortMode.oldest, 'Najstarsze na gorze',
+                Icons.arrow_upward),
+            _sortTile(SortMode.alphabetical, 'Alfabetycznie A-Z',
+                Icons.sort_by_alpha),
+            const SizedBox(height: 8),
           ],
         ),
       ),
     );
+    if (selected != null && selected != _sort) {
+      _sort = selected;
+      await SettingsStore.setSortMode(selected);
+      _load();
+    }
+  }
+
+  Widget _sortTile(SortMode mode, String label, IconData icon) {
+    return ListTile(
+      leading: Icon(icon),
+      title: Text(label),
+      trailing: _sort == mode
+          ? Icon(Icons.check, color: Theme.of(context).colorScheme.primary)
+          : null,
+      onTap: () => Navigator.pop(context, mode),
+    );
+  }
+
+  // ---------- wyszukiwanie ----------
+
+  void _startSearch() {
+    setState(() {
+      _searching = true;
+      _searchResults = [];
+      _searchCtrl.clear();
+    });
+  }
+
+  void _stopSearch() {
+    setState(() {
+      _searching = false;
+      _searchResults = [];
+      _searchCtrl.clear();
+    });
+  }
+
+  Future<void> _runSearch(String q) async {
+    if (q.trim().isEmpty) {
+      setState(() => _searchResults = []);
+      return;
+    }
+    final results =
+        await DatabaseHelper.instance.searchNotes(q.trim(), sort: _sort);
+    if (!mounted) return;
+    setState(() => _searchResults = results);
+  }
+
+  // ---------- build ----------
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: _searching
+            ? TextField(
+                controller: _searchCtrl,
+                autofocus: true,
+                decoration: const InputDecoration(
+                  hintText: 'Szukaj w notatkach...',
+                  border: InputBorder.none,
+                ),
+                onChanged: _runSearch,
+              )
+            : const Text('Notatki'),
+        actions: _searching
+            ? [
+                IconButton(
+                  icon: const Icon(Icons.close),
+                  onPressed: _stopSearch,
+                ),
+              ]
+            : [
+                IconButton(
+                  icon: const Icon(Icons.search),
+                  tooltip: 'Szukaj',
+                  onPressed: _startSearch,
+                ),
+                IconButton(
+                  icon: const Icon(Icons.sort),
+                  tooltip: 'Sortowanie',
+                  onPressed: _pickSort,
+                ),
+                IconButton(
+                  icon: const Icon(Icons.settings),
+                  tooltip: 'Ustawienia',
+                  onPressed: () async {
+                    await Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                          builder: (_) => const SettingsScreen()),
+                    );
+                    _load();
+                  },
+                ),
+              ],
+      ),
+      body: _loading
+          ? const Center(child: CircularProgressIndicator())
+          : _searching
+              ? _buildSearchResults()
+              : _buildMainList(),
+      floatingActionButton: _searching
+          ? null
+          : Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.end,
+              children: [
+                FloatingActionButton.extended(
+                  heroTag: 'fab_note',
+                  onPressed: () => _addNote(),
+                  icon: const Icon(Icons.add),
+                  label: const Text('Nowa notatka'),
+                ),
+                const SizedBox(height: 12),
+                FloatingActionButton.extended(
+                  heroTag: 'fab_folder',
+                  onPressed: _addFolder,
+                  icon: const Icon(Icons.create_new_folder_outlined),
+                  label: const Text('Nowy folder'),
+                ),
+              ],
+            ),
+    );
+  }
+
+  Widget _buildSearchResults() {
+    if (_searchCtrl.text.trim().isEmpty) {
+      return Center(
+        child: Text('Wpisz tekst, aby wyszukac',
+            style: TextStyle(color: Theme.of(context).colorScheme.outline)),
+      );
+    }
+    if (_searchResults.isEmpty) {
+      return Center(
+        child: Text('Brak wynikow',
+            style: TextStyle(color: Theme.of(context).colorScheme.outline)),
+      );
+    }
+    return ListView.builder(
+      padding: const EdgeInsets.all(12),
+      itemCount: _searchResults.length,
+      itemBuilder: (_, i) => _noteTile(_searchResults[i]),
+    );
+  }
+
+  // Glowna lista: luzne notatki -> foldery
+  Widget _buildMainList() {
+    final allowReorder = _sort == SortMode.manual;
+
+    return Center(
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 900),
+        child: ListView(
+          padding: const EdgeInsets.all(12),
+          children: [
+            // --- LUZNE NOTATKI (nad folderami) ---
+            if (_looseNotes.isNotEmpty) ...[
+              if (allowReorder)
+                ReorderableListView(
+                  shrinkWrap: true,
+                  physics: const NeverScrollableScrollPhysics(),
+                  buildDefaultDragHandles: false,
+                  onReorder: (oldI, newI) => _reorderLoose(oldI, newI),
+                  children: [
+                    for (int i = 0; i < _looseNotes.length; i++)
+                      _noteTile(_looseNotes[i],
+                          key: ValueKey('loose_${_looseNotes[i].id}'),
+                          reorderIndex: i),
+                  ],
+                )
+              else
+                ..._looseNotes.map((n) => _noteTile(n)),
+              const SizedBox(height: 8),
+            ],
+
+            // --- FOLDERY ---
+            if (_folders.isNotEmpty) ...[
+              Padding(
+                padding: const EdgeInsets.fromLTRB(8, 8, 8, 8),
+                child: Text('Foldery',
+                    style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        color: Theme.of(context).colorScheme.outline)),
+              ),
+              if (allowReorder)
+                ReorderableListView(
+                  shrinkWrap: true,
+                  physics: const NeverScrollableScrollPhysics(),
+                  buildDefaultDragHandles: false,
+                  onReorder: (oldI, newI) => _reorderFolders(oldI, newI),
+                  children: [
+                    for (int i = 0; i < _folders.length; i++)
+                      _folderBlock(_folders[i],
+                          key: ValueKey('folder_${_folders[i].id}'),
+                          reorderIndex: i),
+                  ],
+                )
+              else
+                ..._folders.map((f) => _folderBlock(f)),
+            ],
+
+            if (_looseNotes.isEmpty && _folders.isEmpty)
+              Padding(
+                padding: const EdgeInsets.only(top: 80),
+                child: Center(
+                  child: Column(
+                    children: [
+                      Icon(Icons.note_alt_outlined,
+                          size: 72,
+                          color: Theme.of(context).colorScheme.outline),
+                      const SizedBox(height: 12),
+                      Text('Brak notatek i folderow',
+                          style: Theme.of(context).textTheme.titleMedium),
+                      const SizedBox(height: 4),
+                      Text('Dodaj cos przyciskami w prawym dolnym rogu',
+                          style: TextStyle(
+                              color:
+                                  Theme.of(context).colorScheme.outline)),
+                    ],
+                  ),
+                ),
+              ),
+            const SizedBox(height: 100), // miejsce pod FAB
+          ],
+        ),
+      ),
+    );
+  }
+
+  // Blok folderu: naglowek + (jesli otwarty) notatki pod spodem
+  Widget _folderBlock(NoteFolder f, {Key? key, int? reorderIndex}) {
+    final count = f.id != null ? (_counts[f.id!] ?? 0) : 0;
+    final notes = f.id != null ? (_folderNotes[f.id!] ?? []) : <Note>[];
+    final allowReorder = _sort == SortMode.manual;
+
+    return Column(
+      key: key,
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Card(
+          child: ListTile(
+            leading: Icon(
+              f.expanded ? Icons.folder_open : Icons.folder,
+              color: Theme.of(context).colorScheme.primary,
+            ),
+            title: Text(f.name),
+            subtitle: Text('$count notatek'),
+            onTap: () => _toggleFolderExpanded(f),
+            trailing: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                if (allowReorder && reorderIndex != null)
+                  ReorderableDragStartListener(
+                    index: reorderIndex,
+                    child: const Padding(
+                      padding: EdgeInsets.only(right: 4),
+                      child: Icon(Icons.drag_handle),
+                    ),
+                  ),
+                PopupMenuButton<String>(
+                  onSelected: (v) {
+                    if (v == 'open') _toggleFolderExpanded(f);
+                    if (v == 'close') _toggleFolderExpanded(f);
+                    if (v == 'rename') _renameFolder(f);
+                    if (v == 'delete') _deleteFolder(f);
+                    if (v == 'addnote') _addNote(folderId: f.id);
+                  },
+                  itemBuilder: (_) => [
+                    if (!f.expanded)
+                      const PopupMenuItem(
+                          value: 'open',
+                          child: Row(children: [
+                            Icon(Icons.folder_open, size: 20),
+                            SizedBox(width: 8),
+                            Text('Folder otwarty')
+                          ]))
+                    else
+                      const PopupMenuItem(
+                          value: 'close',
+                          child: Row(children: [
+                            Icon(Icons.folder, size: 20),
+                            SizedBox(width: 8),
+                            Text('Folder zamkniety')
+                          ])),
+                    const PopupMenuItem(
+                        value: 'addnote',
+                        child: Row(children: [
+                          Icon(Icons.note_add_outlined, size: 20),
+                          SizedBox(width: 8),
+                          Text('Dodaj notatke')
+                        ])),
+                    const PopupMenuItem(
+                        value: 'rename',
+                        child: Row(children: [
+                          Icon(Icons.edit_outlined, size: 20),
+                          SizedBox(width: 8),
+                          Text('Zmien nazwe')
+                        ])),
+                    const PopupMenuItem(
+                        value: 'delete',
+                        child: Row(children: [
+                          Icon(Icons.delete_outline, size: 20),
+                          SizedBox(width: 8),
+                          Text('Usun')
+                        ])),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ),
+        // Notatki folderu widoczne tylko gdy otwarty
+        if (f.expanded)
+          Padding(
+            padding: const EdgeInsets.only(left: 16, bottom: 8),
+            child: notes.isEmpty
+                ? Padding(
+                    padding: const EdgeInsets.all(8),
+                    child: Text('(pusty folder)',
+                        style: TextStyle(
+                            color: Theme.of(context).colorScheme.outline)),
+                  )
+                : Column(
+                    children: notes.map((n) => _noteTile(n)).toList(),
+                  ),
+          ),
+      ],
+    );
+  }
+
+  // Pojedyncza notatka jako kafelek listy
+  Widget _noteTile(Note note, {Key? key, int? reorderIndex}) {
+    final brightness = Theme.of(context).brightness;
+    final cardColor = NoteColors.colorFor(note.colorIndex, brightness);
+    final hasReminder = note.reminderAt != null;
+    final reminderText = hasReminder
+        ? DateFormat('dd.MM.yyyy HH:mm')
+            .format(DateTime.fromMillisecondsSinceEpoch(note.reminderAt!))
+        : null;
+    final allowReorder = _sort == SortMode.manual;
+
+    return Card(
+      key: key,
+      color: cardColor,
+      clipBehavior: Clip.antiAlias,
+      child: InkWell(
+        onTap: () => _openNote(note),
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(14, 10, 6, 10),
+          child: Row(
+            children: [
+              Expanded(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        if (note.pinned)
+                          Padding(
+                            padding: const EdgeInsets.only(right: 4),
+                            child: Icon(Icons.push_pin,
+                                size: 15,
+                                color:
+                                    Theme.of(context).colorScheme.primary),
+                          ),
+                        Expanded(
+                          child: Text(
+                            note.title.isEmpty ? '(bez tytulu)' : note.title,
+                            style: Theme.of(context)
+                                .textTheme
+                                .titleMedium
+                                ?.copyWith(fontWeight: FontWeight.w600),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                      ],
+                    ),
+                    if (note.content.isNotEmpty) ...[
+                      const SizedBox(height: 4),
+                      Text(
+                        note.content,
+                        style: Theme.of(context).textTheme.bodyMedium,
+                        maxLines: 5,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ],
+                    if (hasReminder) ...[
+                      const SizedBox(height: 6),
+                      Row(
+                        children: [
+                          Icon(Icons.notifications_active,
+                              size: 14,
+                              color:
+                                  Theme.of(context).colorScheme.primary),
+                          const SizedBox(width: 4),
+                          Text(reminderText!,
+                              style: Theme.of(context)
+                                  .textTheme
+                                  .labelSmall
+                                  ?.copyWith(
+                                      color: Theme.of(context)
+                                          .colorScheme
+                                          .primary)),
+                        ],
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+              if (allowReorder && reorderIndex != null)
+                ReorderableDragStartListener(
+                  index: reorderIndex,
+                  child: const Padding(
+                    padding: EdgeInsets.symmetric(horizontal: 4),
+                    child: Icon(Icons.drag_handle, size: 20),
+                  ),
+                ),
+              PopupMenuButton<String>(
+                icon: const Icon(Icons.more_vert, size: 20),
+                onSelected: (v) {
+                  if (v == 'pin') _togglePin(note);
+                  if (v == 'delete') _deleteNote(note);
+                },
+                itemBuilder: (_) => [
+                  PopupMenuItem(
+                    value: 'pin',
+                    child: Row(children: [
+                      Icon(
+                          note.pinned
+                              ? Icons.push_pin_outlined
+                              : Icons.push_pin,
+                          size: 20),
+                      const SizedBox(width: 8),
+                      Text(note.pinned ? 'Odepnij' : 'Przypnij'),
+                    ]),
+                  ),
+                  const PopupMenuItem(
+                    value: 'delete',
+                    child: Row(children: [
+                      Icon(Icons.delete_outline, size: 20),
+                      SizedBox(width: 8),
+                      Text('Usun'),
+                    ]),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  // ---------- reorder ----------
+
+  Future<void> _reorderLoose(int oldIndex, int newIndex) async {
+    setState(() {
+      if (newIndex > oldIndex) newIndex -= 1;
+      final item = _looseNotes.removeAt(oldIndex);
+      _looseNotes.insert(newIndex, item);
+    });
+    await DatabaseHelper.instance.saveNotesOrder(_looseNotes);
+  }
+
+  Future<void> _reorderFolders(int oldIndex, int newIndex) async {
+    setState(() {
+      if (newIndex > oldIndex) newIndex -= 1;
+      final item = _folders.removeAt(oldIndex);
+      _folders.insert(newIndex, item);
+    });
+    await DatabaseHelper.instance.saveFoldersOrder(_folders);
   }
 }
