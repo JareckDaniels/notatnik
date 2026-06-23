@@ -193,6 +193,47 @@ class _NoteEditScreenState extends State<NoteEditScreen> {
               ),
               const SizedBox(height: 16),
 
+              // Przypomnienie (na gorze - najczesciej uzywane)
+              _sectionCard(
+                icon: Icons.notifications_outlined,
+                title: 'Przypomnienie',
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    if (reminderText != null)
+                      Row(children: [
+                        Expanded(
+                            child: Text(reminderText,
+                                style:
+                                    Theme.of(context).textTheme.bodyLarge)),
+                        IconButton(
+                            icon: const Icon(Icons.close),
+                            tooltip: 'Usun przypomnienie',
+                            onPressed: _clearReminder),
+                      ])
+                    else
+                      Text('Brak - nacisnij przycisk ponizej',
+                          style: Theme.of(context)
+                              .textTheme
+                              .bodyMedium
+                              ?.copyWith(
+                                  color: Theme.of(context)
+                                      .colorScheme
+                                      .outline)),
+                    const SizedBox(height: 8),
+                    FilledButton.tonalIcon(
+                      onPressed: _pickReminder,
+                      icon: const Icon(Icons.alarm_add),
+                      label: Text(reminderText == null
+                          ? 'Ustaw przypomnienie'
+                          : 'Zmien termin'),
+                    ),
+                  ],
+                ),
+              ),
+
+              const SizedBox(height: 12),
+
               // Wybor koloru
               _sectionCard(
                 icon: Icons.palette_outlined,
@@ -251,47 +292,6 @@ class _NoteEditScreenState extends State<NoteEditScreen> {
                         value: f.id, child: Text(f.name))),
                   ],
                   onChanged: (v) => setState(() => _folderId = v),
-                ),
-              ),
-
-              const SizedBox(height: 12),
-
-              // Przypomnienie
-              _sectionCard(
-                icon: Icons.notifications_outlined,
-                title: 'Przypomnienie',
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    if (reminderText != null)
-                      Row(children: [
-                        Expanded(
-                            child: Text(reminderText,
-                                style:
-                                    Theme.of(context).textTheme.bodyLarge)),
-                        IconButton(
-                            icon: const Icon(Icons.close),
-                            tooltip: 'Usun przypomnienie',
-                            onPressed: _clearReminder),
-                      ])
-                    else
-                      Text('Brak - nacisnij przycisk ponizej',
-                          style: Theme.of(context)
-                              .textTheme
-                              .bodyMedium
-                              ?.copyWith(
-                                  color: Theme.of(context)
-                                      .colorScheme
-                                      .outline)),
-                    const SizedBox(height: 8),
-                    FilledButton.tonalIcon(
-                      onPressed: _pickReminder,
-                      icon: const Icon(Icons.alarm_add),
-                      label: Text(reminderText == null
-                          ? 'Ustaw przypomnienie'
-                          : 'Zmien termin'),
-                    ),
-                  ],
                 ),
               ),
             ],

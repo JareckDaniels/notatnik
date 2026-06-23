@@ -487,14 +487,6 @@ class _FoldersScreenState extends State<FoldersScreen> {
             trailing: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
-                if (allowReorder && reorderIndex != null)
-                  ReorderableDragStartListener(
-                    index: reorderIndex,
-                    child: const Padding(
-                      padding: EdgeInsets.only(right: 4),
-                      child: Icon(Icons.drag_handle),
-                    ),
-                  ),
                 PopupMenuButton<String>(
                   onSelected: (v) {
                     if (v == 'open') _toggleFolderExpanded(f);
@@ -543,6 +535,18 @@ class _FoldersScreenState extends State<FoldersScreen> {
                         ])),
                   ],
                 ),
+                // Uchwyt przeciagania przy samej prawej krawedzi
+                if (allowReorder && reorderIndex != null)
+                  ReorderableDragStartListener(
+                    index: reorderIndex,
+                    child: Container(
+                      padding: const EdgeInsets.only(left: 4, right: 8),
+                      color: Colors.transparent,
+                      child: Icon(Icons.drag_handle,
+                          size: 24,
+                          color: Theme.of(context).colorScheme.outline),
+                    ),
+                  ),
               ],
             ),
           ),
@@ -656,14 +660,6 @@ class _FoldersScreenState extends State<FoldersScreen> {
                   ],
                 ),
               ),
-              if (allowReorder && reorderIndex != null)
-                ReorderableDragStartListener(
-                  index: reorderIndex,
-                  child: const Padding(
-                    padding: EdgeInsets.symmetric(horizontal: 4),
-                    child: Icon(Icons.drag_handle, size: 20),
-                  ),
-                ),
               PopupMenuButton<String>(
                 icon: const Icon(Icons.more_vert, size: 20),
                 onSelected: (v) {
@@ -693,6 +689,18 @@ class _FoldersScreenState extends State<FoldersScreen> {
                   ),
                 ],
               ),
+              // Uchwyt przeciagania przy samej prawej krawedzi
+              if (allowReorder && reorderIndex != null)
+                ReorderableDragStartListener(
+                  index: reorderIndex,
+                  child: Container(
+                    padding: const EdgeInsets.only(left: 4, right: 8),
+                    color: Colors.transparent,
+                    child: Icon(Icons.drag_handle,
+                        size: 24,
+                        color: Theme.of(context).colorScheme.outline),
+                  ),
+                ),
             ],
           ),
         ),

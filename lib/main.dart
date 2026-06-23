@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
 import 'notification_service.dart';
 import 'database_helper.dart';
 import 'screens/folders_screen.dart';
@@ -39,6 +40,17 @@ class NotatkiApp extends StatelessWidget {
         fontFamily: 'Roboto',
       ),
       themeMode: ThemeMode.system,
+      // Jezyk polski - m.in. kalendarz i zegar po polsku
+      locale: const Locale('pl', 'PL'),
+      localizationsDelegates: const [
+        GlobalMaterialLocalizations.delegate,
+        GlobalWidgetsLocalizations.delegate,
+        GlobalCupertinoLocalizations.delegate,
+      ],
+      supportedLocales: const [
+        Locale('pl', 'PL'),
+        Locale('en', 'US'),
+      ],
       home: const FoldersScreen(),
     );
   }
