@@ -9,6 +9,7 @@ class Note {
   final bool pinned; // czy notatka przypieta na gorze
   final int? folderId; // przynaleznosc do folderu (null = bez folderu)
   final int position; // reczna kolejnosc (mniejsze = wyzej)
+  final int? deletedAt; // timestamp wyrzucenia do kosza (null = nie w koszu)
 
   Note({
     this.id,
@@ -20,6 +21,7 @@ class Note {
     this.pinned = false,
     this.folderId,
     this.position = 0,
+    this.deletedAt,
   });
 
   // Konwersja do mapy (zapis do bazy)
@@ -34,6 +36,7 @@ class Note {
       'pinned': pinned ? 1 : 0,
       'folderId': folderId,
       'position': position,
+      'deletedAt': deletedAt,
     };
   }
 
@@ -49,6 +52,7 @@ class Note {
       pinned: (map['pinned'] as int?) == 1,
       folderId: map['folderId'] as int?,
       position: (map['position'] as int?) ?? 0,
+      deletedAt: map['deletedAt'] as int?,
     );
   }
 
@@ -69,7 +73,9 @@ class Note {
     bool? pinned,
     int? folderId,
     int? position,
+    int? deletedAt,
     bool clearReminder = false,
+    bool clearDeleted = false,
     bool clearFolder = false,
   }) {
     return Note(
@@ -82,6 +88,7 @@ class Note {
       pinned: pinned ?? this.pinned,
       folderId: clearFolder ? null : (folderId ?? this.folderId),
       position: position ?? this.position,
+      deletedAt: clearDeleted ? null : (deletedAt ?? this.deletedAt),
     );
   }
 }

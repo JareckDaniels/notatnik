@@ -44,6 +44,32 @@ class _SettingsScreenState extends State<SettingsScreen> {
     }
   }
 
+  Future<void> _exportToFolder() async {
+    setState(() => _busy = true);
+    try {
+      final path = await BackupService.exportToFolder();
+      if (mounted) {
+        if (path == null) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Anulowano zapis')),
+          );
+        } else {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Zapisano: $path')),
+          );
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Blad zapisu: $e')),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
   Future<void> _import() async {
     // Ostrzezenie: import nadpisuje obecne dane
     final confirm = await showDialog<bool>(
@@ -124,10 +150,18 @@ class _SettingsScreenState extends State<SettingsScreen> {
                             children: [
                               ListTile(
                                 leading: const Icon(Icons.upload_file),
-                                title: const Text('Eksportuj notatki'),
+                                title: const Text('Eksportuj (wyslij)'),
                                 subtitle: const Text(
-                                    'Zapisz kopie do pliku (z datami i folderami)'),
+                                    'Udostepnij plik kopii (mail, dysk, komunikator)'),
                                 onTap: _busy ? null : _export,
+                              ),
+                              const Divider(height: 1),
+                              ListTile(
+                                leading: const Icon(Icons.folder_open),
+                                title: const Text('Zapisz do folderu'),
+                                subtitle: const Text(
+                                    'Zapisz plik kopii w pamieci telefonu'),
+                                onTap: _busy ? null : _exportToFolder,
                               ),
                               const Divider(height: 1),
                               ListTile(

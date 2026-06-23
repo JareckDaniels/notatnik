@@ -1,11 +1,14 @@
 import 'package:flutter/material.dart';
 import 'notification_service.dart';
+import 'database_helper.dart';
 import 'screens/folders_screen.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await NotificationService.instance.init();
   await NotificationService.instance.requestPermissions();
+  // Czyszczenie kosza: usuwa notatki starsze niz 30 dni
+  await DatabaseHelper.instance.purgeOldTrash();
   runApp(const NotatkiApp());
 }
 

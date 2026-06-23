@@ -8,6 +8,7 @@ import '../note_colors.dart';
 import '../settings_store.dart';
 import 'note_edit_screen.dart';
 import 'settings_screen.dart';
+import 'trash_screen.dart';
 
 class FoldersScreen extends StatefulWidget {
   const FoldersScreen({super.key});
@@ -22,6 +23,7 @@ class _FoldersScreenState extends State<FoldersScreen> {
   final Map<int, List<Note>> _folderNotes = {}; // notatki w folderach
   final Map<int, int> _counts = {};
   SortMode _sort = SortMode.manual;
+  int _trashCount = 0;
   bool _loading = true;
 
   // Wyszukiwanie
@@ -51,6 +53,7 @@ class _FoldersScreenState extends State<FoldersScreen> {
     final folders = await DatabaseHelper.instance.getAllFolders();
     final loose =
         await DatabaseHelper.instance.getNotes(noFolder: true, sort: _sort);
+    final trashCount = await DatabaseHelper.instance.countTrash();
 
     _folderNotes.clear();
     _counts.clear();
@@ -66,6 +69,7 @@ class _FoldersScreenState extends State<FoldersScreen> {
     setState(() {
       _folders = folders;
       _looseNotes = loose;
+      _trashCount = trashCount;
       _loading = false;
     });
   }
@@ -91,8 +95,23 @@ class _FoldersScreenState extends State<FoldersScreen> {
 
   Future<void> _deleteNote(Note note) async {
     if (note.id == null) return;
+    // Przypomnienie anulujemy - notatka idzie do kosza
     await NotificationService.instance.cancelReminder(note.id!);
-    await DatabaseHelper.instance.deleteNote(note.id!);
+    await DatabaseHelper.instance.moveToTrash(note.id!);
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: const Text('Przeniesiono do kosza'),
+          action: SnackBarAction(
+            label: 'Cofnij',
+            onPressed: () async {
+              await DatabaseHelper.instance.restoreFromTrash(note.id!);
+              _load();
+            },
+          ),
+        ),
+      );
+    }
     _load();
   }
 
@@ -285,6 +304,21 @@ class _FoldersScreenState extends State<FoldersScreen> {
                   onPressed: _pickSort,
                 ),
                 IconButton(
+                  icon: Badge(
+                    label: Text('$_trashCount'),
+                    isLabelVisible: _trashCount > 0,
+                    child: const Icon(Icons.delete_outline),
+                  ),
+                  tooltip: 'Kosz',
+                  onPressed: () async {
+                    await Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (_) => const TrashScreen()),
+                    );
+                    _load();
+                  },
+                ),
+                IconButton(
                   icon: const Icon(Icons.settings),
                   tooltip: 'Ustawienia',
                   onPressed: () async {
@@ -309,18 +343,18 @@ class _FoldersScreenState extends State<FoldersScreen> {
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.end,
               children: [
-                FloatingActionButton.extended(
+                FloatingActionButton(
                   heroTag: 'fab_note',
                   onPressed: () => _addNote(),
-                  icon: const Icon(Icons.add),
-                  label: const Text('Nowa notatka'),
+                  tooltip: 'Nowa notatka',
+                  child: const Icon(Icons.add),
                 ),
                 const SizedBox(height: 12),
-                FloatingActionButton.extended(
+                FloatingActionButton(
                   heroTag: 'fab_folder',
                   onPressed: _addFolder,
-                  icon: const Icon(Icons.create_new_folder_outlined),
-                  label: const Text('Nowy folder'),
+                  tooltip: 'Nowy folder',
+                  child: const Icon(Icons.create_new_folder_outlined),
                 ),
               ],
             ),
@@ -558,31 +592,40 @@ class _FoldersScreenState extends State<FoldersScreen> {
                   mainAxisSize: MainAxisSize.min,
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Row(
-                      children: [
-                        if (note.pinned)
-                          Padding(
-                            padding: const EdgeInsets.only(right: 4),
-                            child: Icon(Icons.push_pin,
-                                size: 15,
-                                color:
-                                    Theme.of(context).colorScheme.primary),
+                    if (note.title.isNotEmpty)
+                      Row(
+                        children: [
+                          if (note.pinned)
+                            Padding(
+                              padding: const EdgeInsets.only(right: 4),
+                              child: Icon(Icons.push_pin,
+                                  size: 15,
+                                  color:
+                                      Theme.of(context).colorScheme.primary),
+                            ),
+                          Expanded(
+                            child: Text(
+                              note.title,
+                              style: Theme.of(context)
+                                  .textTheme
+                                  .titleLarge
+                                  ?.copyWith(
+                                      fontWeight: FontWeight.bold),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
                           ),
-                        Expanded(
-                          child: Text(
-                            note.title.isEmpty ? '(bez tytulu)' : note.title,
-                            style: Theme.of(context)
-                                .textTheme
-                                .titleMedium
-                                ?.copyWith(fontWeight: FontWeight.w600),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                        ),
-                      ],
-                    ),
+                        ],
+                      ),
+                    if (note.title.isEmpty && note.pinned)
+                      Padding(
+                        padding: const EdgeInsets.only(bottom: 2),
+                        child: Icon(Icons.push_pin,
+                            size: 15,
+                            color: Theme.of(context).colorScheme.primary),
+                      ),
                     if (note.content.isNotEmpty) ...[
-                      const SizedBox(height: 4),
+                      if (note.title.isNotEmpty) const SizedBox(height: 4),
                       Text(
                         note.content,
                         style: Theme.of(context).textTheme.bodyMedium,

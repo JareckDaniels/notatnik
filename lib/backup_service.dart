@@ -13,32 +13,48 @@ import 'database_helper.dart';
 class BackupService {
   static const int _formatVersion = 1;
 
-  // Tworzy plik kopii i otwiera systemowe okno udostepniania,
-  // dzieki czemu uzytkownik moze zapisac go gdziekolwiek lub wyslac.
+  // Tworzy plik kopii i otwiera systemowe okno udostepniania.
   static Future<void> exportBackup() async {
+    final jsonStr = await _buildBackupJson();
+    final dir = await getTemporaryDirectory();
+    final file = File('${dir.path}/${_fileName()}');
+    await file.writeAsString(jsonStr);
+
+    await Share.shareXFiles(
+      [XFile(file.path)],
+      subject: 'Kopia zapasowa notatek',
+      text: 'Kopia zapasowa aplikacji Notatki',
+    );
+  }
+
+  // Buduje tresc kopii (JSON) - wspolne dla wysylki i zapisu lokalnego
+  static Future<String> _buildBackupJson() async {
     final notes = await DatabaseHelper.instance.getAllNotes();
     final folders = await DatabaseHelper.instance.getAllFolders();
-
     final data = {
       'format': _formatVersion,
       'exportedAt': DateTime.now().toIso8601String(),
       'folders': folders.map((f) => f.toJson()).toList(),
       'notes': notes.map((n) => n.toJson()).toList(),
     };
+    return const JsonEncoder.withIndent('  ').convert(data);
+  }
 
-    final jsonStr = const JsonEncoder.withIndent('  ').convert(data);
-
-    // Zapis do pliku tymczasowego z czytelna nazwa (z data)
-    final dir = await getTemporaryDirectory();
+  static String _fileName() {
     final stamp = DateFormat('yyyy-MM-dd_HHmm').format(DateTime.now());
-    final file = File('${dir.path}/notatki_kopia_$stamp.json');
-    await file.writeAsString(jsonStr);
+    return 'notatki_kopia_$stamp.json';
+  }
 
-    await Share.shareXFiles(
-      [XFile(file.path)],
-      subject: 'Kopia zapasowa notatek',
-      text: 'Kopia zapasowa aplikacji Notatki ($stamp)',
-    );
+  // Zapis kopii do folderu wybranego przez uzytkownika w pamieci telefonu.
+  // Zwraca sciezke zapisanego pliku albo null gdy anulowano.
+  static Future<String?> exportToFolder() async {
+    final dir = await FilePicker.platform.getDirectoryPath();
+    if (dir == null) return null; // anulowano
+
+    final jsonStr = await _buildBackupJson();
+    final file = File('$dir/${_fileName()}');
+    await file.writeAsString(jsonStr);
+    return file.path;
   }
 
   // Wynik importu do pokazania uzytkownikowi
