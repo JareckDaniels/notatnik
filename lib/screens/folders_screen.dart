@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../folder.dart';
 import '../database_helper.dart';
 import 'notes_list_screen.dart';
+import 'note_edit_screen.dart';
 import 'settings_screen.dart';
 
 // Ekran glowny: lista folderow + skroty "Wszystkie" i "Bez folderu".
@@ -59,6 +60,17 @@ class _FoldersScreenState extends State<FoldersScreen> {
       ),
     );
     _load(); // odswiez liczniki po powrocie
+  }
+
+  // Szybkie utworzenie notatki z ekranu glownego (bez folderu)
+  Future<void> _addNote() async {
+    final changed = await Navigator.push<bool>(
+      context,
+      MaterialPageRoute(
+        builder: (_) => const NoteEditScreen(),
+      ),
+    );
+    if (changed == true) _load();
   }
 
   Future<void> _addFolder() async {
@@ -186,10 +198,24 @@ class _FoldersScreenState extends State<FoldersScreen> {
                 ),
               ),
             ),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: _addFolder,
-        icon: const Icon(Icons.create_new_folder_outlined),
-        label: const Text('Nowy folder'),
+      floatingActionButton: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.end,
+        children: [
+          FloatingActionButton.extended(
+            heroTag: 'fab_note',
+            onPressed: _addNote,
+            icon: const Icon(Icons.add),
+            label: const Text('Nowa notatka'),
+          ),
+          const SizedBox(height: 12),
+          FloatingActionButton.extended(
+            heroTag: 'fab_folder',
+            onPressed: _addFolder,
+            icon: const Icon(Icons.create_new_folder_outlined),
+            label: const Text('Nowy folder'),
+          ),
+        ],
       ),
     );
   }
