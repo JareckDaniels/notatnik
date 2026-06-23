@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'notification_service.dart';
-import 'screens/notes_list_screen.dart';
+import 'screens/folders_screen.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -14,7 +14,6 @@ class NotatkiApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // Schemat kolorów oparty na jednym kolorze bazowym
     const seedColor = Color(0xFF4A6FA5);
 
     return MaterialApp(
@@ -37,7 +36,7 @@ class NotatkiApp extends StatelessWidget {
         fontFamily: 'Roboto',
       ),
       themeMode: ThemeMode.system,
-      home: const NotesListScreen(),
+      home: const FoldersScreen(),
     );
   }
 }
