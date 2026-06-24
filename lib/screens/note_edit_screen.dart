@@ -21,6 +21,7 @@ class _NoteEditScreenState extends State<NoteEditScreen> {
   late TextEditingController _titleController;
   late TextEditingController _contentController;
   DateTime? _reminder;
+  bool _forceAlarm = false;
   int _colorIndex = 0;
   bool _pinned = false;
   int? _folderId;
@@ -40,6 +41,7 @@ class _NoteEditScreenState extends State<NoteEditScreen> {
           DateTime.fromMillisecondsSinceEpoch(widget.note!.reminderAt!);
     }
     _colorIndex = widget.note?.colorIndex ?? 0;
+    _forceAlarm = widget.note?.forceAlarm ?? false;
     _pinned = widget.note?.pinned ?? false;
     _folderId = widget.note?.folderId ?? widget.defaultFolderId;
     _loadFolders();
@@ -162,6 +164,7 @@ class _NoteEditScreenState extends State<NoteEditScreen> {
         colorIndex: _colorIndex,
         pinned: _pinned,
         folderId: _folderId,
+        forceAlarm: _forceAlarm,
       );
       final id = await DatabaseHelper.instance.insertNote(note);
       await _scheduleIfNeeded(id, title, content);
@@ -175,6 +178,7 @@ class _NoteEditScreenState extends State<NoteEditScreen> {
         pinned: _pinned,
         folderId: _folderId,
         clearFolder: _folderId == null,
+        forceAlarm: _forceAlarm,
       );
       await DatabaseHelper.instance.updateNote(updated);
       await NotificationService.instance.cancelReminder(widget.note!.id!);
@@ -192,6 +196,7 @@ class _NoteEditScreenState extends State<NoteEditScreen> {
         title: title.isEmpty ? 'Notatka' : title,
         body: content.isEmpty ? 'Przypomnienie' : content,
         dateTime: _reminder!,
+        forceAlarm: _forceAlarm,
       );
     }
   }
@@ -285,6 +290,22 @@ class _NoteEditScreenState extends State<NoteEditScreen> {
                           ? 'Ustaw przypomnienie'
                           : 'Zmien termin'),
                     ),
+                    // Opcja budzika - tylko gdy przypomnienie ustawione
+                    if (reminderText != null) ...[
+                      const SizedBox(height: 4),
+                      SwitchListTile(
+                        contentPadding: EdgeInsets.zero,
+                        secondary: Icon(Icons.alarm,
+                            color: _forceAlarm
+                                ? Theme.of(context).colorScheme.primary
+                                : Theme.of(context).colorScheme.outline),
+                        title: const Text('Alarm jak budzik'),
+                        subtitle: const Text(
+                            'Pelnoekranowy alarm, niezaleznie od ustawien'),
+                        value: _forceAlarm,
+                        onChanged: (v) => setState(() => _forceAlarm = v),
+                      ),
+                    ],
                   ],
                 ),
               ),

@@ -10,6 +10,7 @@ class Note {
   final int? folderId; // przynaleznosc do folderu (null = bez folderu)
   final int position; // reczna kolejnosc (mniejsze = wyzej)
   final int? deletedAt; // timestamp wyrzucenia do kosza (null = nie w koszu)
+  final bool forceAlarm; // true = ta notatka dzwoni jak budzik niezaleznie od globalnego
 
   Note({
     this.id,
@@ -22,6 +23,7 @@ class Note {
     this.folderId,
     this.position = 0,
     this.deletedAt,
+    this.forceAlarm = false,
   });
 
   // Konwersja do mapy (zapis do bazy)
@@ -37,6 +39,7 @@ class Note {
       'folderId': folderId,
       'position': position,
       'deletedAt': deletedAt,
+      'forceAlarm': forceAlarm ? 1 : 0,
     };
   }
 
@@ -53,6 +56,7 @@ class Note {
       folderId: map['folderId'] as int?,
       position: (map['position'] as int?) ?? 0,
       deletedAt: map['deletedAt'] as int?,
+      forceAlarm: (map['forceAlarm'] as int?) == 1,
     );
   }
 
@@ -74,6 +78,7 @@ class Note {
     int? folderId,
     int? position,
     int? deletedAt,
+    bool? forceAlarm,
     bool clearReminder = false,
     bool clearDeleted = false,
     bool clearFolder = false,
@@ -89,6 +94,7 @@ class Note {
       folderId: clearFolder ? null : (folderId ?? this.folderId),
       position: position ?? this.position,
       deletedAt: clearDeleted ? null : (deletedAt ?? this.deletedAt),
+      forceAlarm: forceAlarm ?? this.forceAlarm,
     );
   }
 }

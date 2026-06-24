@@ -32,7 +32,7 @@ class DatabaseHelper {
     final path = join(dbPath, fileName);
     return await openDatabase(
       path,
-      version: 4,
+      version: 5,
       onCreate: _createDB,
       onUpgrade: _upgradeDB,
     );
@@ -50,7 +50,8 @@ class DatabaseHelper {
         pinned INTEGER NOT NULL DEFAULT 0,
         folderId INTEGER,
         position INTEGER NOT NULL DEFAULT 0,
-        deletedAt INTEGER
+        deletedAt INTEGER,
+        forceAlarm INTEGER NOT NULL DEFAULT 0
       )
     ''');
     await db.execute('''
@@ -99,6 +100,10 @@ class DatabaseHelper {
     }
     if (oldVersion < 4) {
       await db.execute('ALTER TABLE notes ADD COLUMN deletedAt INTEGER');
+    }
+    if (oldVersion < 5) {
+      await db.execute(
+          'ALTER TABLE notes ADD COLUMN forceAlarm INTEGER NOT NULL DEFAULT 0');
     }
   }
 

@@ -142,8 +142,11 @@ class NotificationService {
     required String title,
     required String body,
     required DateTime dateTime,
+    bool forceAlarm = false, // true = wymus budzik niezaleznie od globalnego
   }) async {
-    final style = await getReminderStyle();
+    // Jesli notatka wymusza budzik, uzyj alarmu; inaczej globalne ustawienie
+    final style =
+        forceAlarm ? ReminderStyle.fullScreenAlarm : await getReminderStyle();
 
     String channelId;
     Importance importance;
