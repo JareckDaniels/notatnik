@@ -9,6 +9,7 @@ enum SortMode {
   newest,
   oldest,
   alphabetical,
+  reminder, // wg daty przypomnienia (najblizsze pierwsze, bez daty na koncu)
 }
 
 class DatabaseHelper {
@@ -111,6 +112,10 @@ class DatabaseHelper {
         return 'pinned DESC, createdAt ASC';
       case SortMode.alphabetical:
         return 'pinned DESC, title COLLATE NOCASE ASC';
+      case SortMode.reminder:
+        // Najblizsze przypomnienia pierwsze; notatki bez przypomnienia na koncu.
+        // (reminderAt IS NULL) daje 0 dla majacych date, 1 dla pustych -> puste nizej.
+        return 'pinned DESC, (reminderAt IS NULL) ASC, reminderAt ASC';
     }
   }
 

@@ -46,6 +46,26 @@ class _FoldersScreenState extends State<FoldersScreen> {
   Future<void> _init() async {
     _sort = await SettingsStore.getSortMode();
     await _load();
+    // Reaguj na tapniecia powiadomien w trakcie dzialania apki
+    NotificationService.setOnNotificationTap(_openPendingNote);
+    // Sprawdz, czy apka zostala otwarta przez powiadomienie
+    _openPendingNote();
+  }
+
+  // Otwiera notatke wskazana przez klikniete powiadomienie (jesli jest)
+  Future<void> _openPendingNote() async {
+    final id = NotificationService.pendingNoteId;
+    if (id == null) return;
+    NotificationService.pendingNoteId = null; // zuzyj raz
+    final note = await DatabaseHelper.instance.getNote(id);
+    if (note == null || !mounted) return;
+    // Nie otwieraj notatki z kosza
+    if (note.deletedAt != null) return;
+    final changed = await Navigator.push<bool>(
+      context,
+      MaterialPageRoute(builder: (_) => NoteEditScreen(note: note)),
+    );
+    if (changed == true) _load();
   }
 
   Future<void> _load() async {
@@ -229,6 +249,8 @@ class _FoldersScreenState extends State<FoldersScreen> {
                 Icons.arrow_upward),
             _sortTile(SortMode.alphabetical, 'Alfabetycznie A-Z',
                 Icons.sort_by_alpha),
+            _sortTile(SortMode.reminder, 'Wg przypomnienia (najblizsze)',
+                Icons.notifications_active),
             const SizedBox(height: 8),
           ],
         ),
@@ -598,6 +620,8 @@ class _FoldersScreenState extends State<FoldersScreen> {
     final brightness = Theme.of(context).brightness;
     final cardColor = NoteColors.colorFor(note.colorIndex, brightness);
     final hasReminder = note.reminderAt != null;
+    final reminderPast = hasReminder &&
+        note.reminderAt! < DateTime.now().millisecondsSinceEpoch;
     final reminderText = hasReminder
         ? DateFormat('dd.MM.yyyy HH:mm')
             .format(DateTime.fromMillisecondsSinceEpoch(note.reminderAt!))
@@ -668,19 +692,36 @@ class _FoldersScreenState extends State<FoldersScreen> {
                       const SizedBox(height: 4),
                       Row(
                         children: [
-                          Icon(Icons.notifications_active,
+                          Icon(
+                              reminderPast
+                                  ? Icons.notification_important
+                                  : Icons.notifications_active,
                               size: 14,
-                              color:
-                                  Theme.of(context).colorScheme.primary),
+                              color: reminderPast
+                                  ? Theme.of(context).colorScheme.error
+                                  : Theme.of(context).colorScheme.primary),
                           const SizedBox(width: 4),
-                          Text(reminderText!,
-                              style: Theme.of(context)
-                                  .textTheme
-                                  .labelSmall
-                                  ?.copyWith(
-                                      color: Theme.of(context)
-                                          .colorScheme
-                                          .primary)),
+                          Flexible(
+                            child: Text(
+                                reminderPast
+                                    ? '$reminderText (minelo)'
+                                    : reminderText!,
+                                style: Theme.of(context)
+                                    .textTheme
+                                    .labelSmall
+                                    ?.copyWith(
+                                        color: reminderPast
+                                            ? Theme.of(context)
+                                                .colorScheme
+                                                .error
+                                            : Theme.of(context)
+                                                .colorScheme
+                                                .primary,
+                                        fontWeight: reminderPast
+                                            ? FontWeight.bold
+                                            : FontWeight.normal),
+                                overflow: TextOverflow.ellipsis),
+                          ),
                         ],
                       ),
                     ],

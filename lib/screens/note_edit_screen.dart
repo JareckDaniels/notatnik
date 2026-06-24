@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import 'package:share_plus/share_plus.dart';
 import '../note.dart';
 import '../folder.dart';
 import '../database_helper.dart';
@@ -100,6 +101,47 @@ class _NoteEditScreenState extends State<NoteEditScreen> {
 
   void _clearReminder() => setState(() => _reminder = null);
 
+  // Usuniecie notatki do kosza z poziomu edytora
+  Future<void> _deleteNote() async {
+    final note = widget.note;
+    if (note?.id == null) return;
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: const Text('Usunac do kosza?'),
+        content: const Text(
+            'Notatke mozna przywrocic z kosza w ciagu 30 dni.'),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(context, false),
+              child: const Text('Anuluj')),
+          FilledButton(
+              onPressed: () => Navigator.pop(context, true),
+              child: const Text('Usun')),
+        ],
+      ),
+    );
+    if (confirm != true) return;
+    await NotificationService.instance.cancelReminder(note!.id!);
+    await DatabaseHelper.instance.moveToTrash(note.id!);
+    if (!mounted) return;
+    Navigator.pop(context, true);
+  }
+
+  // Udostepnienie tresci notatki (mail, komunikatory, schowek...)
+  Future<void> _shareNote() async {
+    final title = _titleController.text.trim();
+    final content = _contentController.text.trim();
+    final text = title.isEmpty ? content : '$title\n\n$content';
+    if (text.trim().isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Notatka jest pusta')),
+      );
+      return;
+    }
+    await Share.share(text, subject: title.isEmpty ? null : title);
+  }
+
   Future<void> _save() async {
     final title = _titleController.text.trim();
     final content = _contentController.text.trim();
@@ -172,6 +214,18 @@ class _NoteEditScreenState extends State<NoteEditScreen> {
             icon: Icon(_pinned ? Icons.push_pin : Icons.push_pin_outlined),
             tooltip: _pinned ? 'Odepnij' : 'Przypnij',
             onPressed: () => setState(() => _pinned = !_pinned),
+          ),
+          // Usuwanie dostepne tylko dla istniejacej notatki
+          if (widget.note != null)
+            IconButton(
+              icon: const Icon(Icons.delete_outline),
+              tooltip: 'Usun do kosza',
+              onPressed: _deleteNote,
+            ),
+          IconButton(
+            icon: const Icon(Icons.share),
+            tooltip: 'Udostepnij',
+            onPressed: _shareNote,
           ),
           IconButton(
             icon: const Icon(Icons.check),

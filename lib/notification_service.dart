@@ -19,6 +19,15 @@ class NotificationService {
 
   static const String _prefKey = 'reminder_style';
 
+  // ID notatki z ostatnio klikntego powiadomienia (do otwarcia po starcie)
+  static int? pendingNoteId;
+
+  // Callback wywolywany gdy uzytkownik tapnie powiadomienie przy dzialajacej apce
+  static void Function()? _onTapCallback;
+  static void setOnNotificationTap(void Function() cb) {
+    _onTapCallback = cb;
+  }
+
   // Inicjalizacja - wywoływana raz przy starcie aplikacji
   Future<void> init() async {
     tzdata.initializeTimeZones();
@@ -29,7 +38,27 @@ class NotificationService {
         AndroidInitializationSettings('@mipmap/ic_launcher');
     const initSettings = InitializationSettings(android: androidSettings);
 
-    await _plugin.initialize(initSettings);
+    await _plugin.initialize(
+      initSettings,
+      onDidReceiveNotificationResponse: (response) {
+        // Tapniecie w powiadomienie gdy apka dziala - zapisz ID notatki
+        final payload = response.payload;
+        if (payload != null && payload.isNotEmpty) {
+          pendingNoteId = int.tryParse(payload);
+          _onTapCallback?.call();
+        }
+      },
+    );
+
+    // Sprawdz, czy apka zostala uruchomiona przez tapniecie w powiadomienie
+    final launchDetails =
+        await _plugin.getNotificationAppLaunchDetails();
+    if (launchDetails?.didNotificationLaunchApp == true) {
+      final payload = launchDetails?.notificationResponse?.payload;
+      if (payload != null && payload.isNotEmpty) {
+        pendingNoteId = int.tryParse(payload);
+      }
+    }
 
     // Tworzymy kanały powiadomień (Android 8+)
     await _createChannels();
@@ -168,6 +197,7 @@ class NotificationService {
       androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
       uiLocalNotificationDateInterpretation:
           UILocalNotificationDateInterpretation.absoluteTime,
+      payload: '$id', // ID notatki - do otwarcia po tapnieciu
     );
   }
 
