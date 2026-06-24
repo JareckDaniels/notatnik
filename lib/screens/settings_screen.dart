@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import 'package:package_info_plus/package_info_plus.dart';
 import '../notification_service.dart';
 import '../backup_service.dart';
 import '../settings_store.dart';
@@ -17,12 +18,24 @@ class _SettingsScreenState extends State<SettingsScreen> {
   bool _autoBackup = false;
   String? _autoBackupPath;
   int? _lastBackupMs;
+  String _appVersion = '';
 
   @override
   void initState() {
     super.initState();
     _loadStyle();
     _loadBackupSettings();
+    _loadVersion();
+  }
+
+  Future<void> _loadVersion() async {
+    try {
+      final info = await PackageInfo.fromPlatform();
+      if (!mounted) return;
+      setState(() => _appVersion = 'Wersja ${info.version}');
+    } catch (_) {
+      // ignorujemy - wersja po prostu sie nie pokaze
+    }
   }
 
   Future<void> _loadBackupSettings() async {
@@ -300,6 +313,21 @@ class _SettingsScreenState extends State<SettingsScreen> {
                             ]),
                           ),
                         ),
+                        // Numer wersji aplikacji
+                        const SizedBox(height: 24),
+                        Center(
+                          child: Text(
+                            _appVersion,
+                            style: Theme.of(context)
+                                .textTheme
+                                .bodySmall
+                                ?.copyWith(
+                                    color: Theme.of(context)
+                                        .colorScheme
+                                        .outline),
+                          ),
+                        ),
+                        const SizedBox(height: 8),
                       ],
                     ),
                   ),
