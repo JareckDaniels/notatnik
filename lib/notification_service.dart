@@ -113,7 +113,8 @@ class NotificationService {
     );
   }
 
-  // Prośba o uprawnienia (Android 13+ powiadomienia, 12+ dokładne alarmy)
+  // Prośba o uprawnienia (Android 13+ powiadomienia, 12+ dokładne alarmy,
+  // 14+ pelnoekranowy alarm)
   Future<void> requestPermissions() async {
     final androidPlugin = _plugin.resolvePlatformSpecificImplementation<
         AndroidFlutterLocalNotificationsPlugin>();
@@ -121,6 +122,12 @@ class NotificationService {
 
     await androidPlugin.requestNotificationsPermission();
     await androidPlugin.requestExactAlarmsPermission();
+    // Zgoda na pelnoekranowy alarm (budzik) - Android 14+
+    try {
+      await androidPlugin.requestFullScreenIntentPermission();
+    } catch (_) {
+      // Starsze wersje pluginu/Androida moga nie miec tej metody - ignorujemy
+    }
   }
 
   // Odczyt wybranego stylu przypomnienia
