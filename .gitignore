@@ -20,3 +20,9 @@ android/app/release/
 
 # System
 .DS_Store
+
+# Klucz podpisujacy - NIGDY do repozytorium
+android/key.properties
+*.jks
+*.keystore
+keystore-base64.txt

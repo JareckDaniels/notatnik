@@ -299,9 +299,9 @@ class _NoteEditScreenState extends State<NoteEditScreen> {
                             color: _forceAlarm
                                 ? Theme.of(context).colorScheme.primary
                                 : Theme.of(context).colorScheme.outline),
-                        title: const Text('Alarm jak budzik'),
+                        title: const Text('Wybudzaj ekran'),
                         subtitle: const Text(
-                            'Pelnoekranowy alarm, niezaleznie od ustawien'),
+                            'Podswietla ekran i pokazuje powiadomienie na pelnym ekranie'),
                         value: _forceAlarm,
                         onChanged: (v) => setState(() => _forceAlarm = v),
                       ),

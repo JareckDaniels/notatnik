@@ -30,15 +30,26 @@ jobs:
           channel: 'stable'
           flutter-version: '3.24.0'
 
-      # 4. Pobranie zależności projektu
+      # 4. Odtworzenie klucza podpisujacego z sekretow
+      - name: Przygotuj klucz podpisujacy
+        run: |
+          echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 -d > android/app/notatki-release.jks
+          cat > android/key.properties << PROPS
+          storeFile=notatki-release.jks
+          storePassword=${{ secrets.KEYSTORE_PASSWORD }}
+          keyAlias=${{ secrets.KEY_ALIAS }}
+          keyPassword=${{ secrets.KEY_PASSWORD }}
+          PROPS
+
+      # 5. Pobranie zależności projektu
       - name: Pobierz pakiety
         run: flutter pub get
 
-      # 5. Zbudowanie pliku APK (release)
+      # 6. Zbudowanie pliku APK (release, podpisany kluczem)
       - name: Zbuduj APK
         run: flutter build apk --release
 
-      # 6. Udostępnienie gotowego APK do pobrania
+      # 7. Udostępnienie gotowego APK do pobrania
       - name: Wgraj APK jako artefakt
         uses: actions/upload-artifact@v4
         with:

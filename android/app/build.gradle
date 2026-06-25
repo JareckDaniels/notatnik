@@ -4,6 +4,15 @@ plugins {
     id "dev.flutter.flutter-gradle-plugin"
 }
 
+// Wczytanie danych klucza podpisujacego z key.properties (jesli istnieje).
+// Plik tworzony jest przez GitHub Actions z sekretow; lokalnie moze go nie byc.
+def keystorePropertiesFile = rootProject.file("key.properties")
+def keystoreProperties = new Properties()
+def hasKeystore = keystorePropertiesFile.exists()
+if (hasKeystore) {
+    keystoreProperties.load(new FileInputStream(keystorePropertiesFile))
+}
+
 android {
     namespace = "com.example.notatki"
     compileSdk = 35
@@ -28,10 +37,22 @@ android {
         multiDexEnabled = true
     }
 
+    signingConfigs {
+        release {
+            if (hasKeystore) {
+                keyAlias = keystoreProperties['keyAlias']
+                keyPassword = keystoreProperties['keyPassword']
+                storeFile = file(keystoreProperties['storeFile'])
+                storePassword = keystoreProperties['storePassword']
+            }
+        }
+    }
+
     buildTypes {
         release {
-            // Podpis kluczem debug, by APK dał się zainstalować bez konfiguracji
-            signingConfig = signingConfigs.debug
+            // Jesli mamy keystore (GitHub Actions) - podpisz nim.
+            // Jesli nie (np. lokalny build) - awaryjnie kluczem debug.
+            signingConfig = hasKeystore ? signingConfigs.release : signingConfigs.debug
             minifyEnabled false
             shrinkResources false
         }
