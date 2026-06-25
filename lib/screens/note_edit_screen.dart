@@ -69,6 +69,7 @@ class _NoteEditScreenState extends State<NoteEditScreen> {
       }
     }
     _rebuildItemControllers();
+    if (_isList) _ensureTrailingEmpty();
   }
 
   // Odtwarza kontrolery i ogniska tak, by bylo ich tyle co pozycji
@@ -249,6 +250,7 @@ class _NoteEditScreenState extends State<NoteEditScreen> {
           _rebuildItemControllers();
         }
         _isList = true;
+        _ensureTrailingEmpty();
       } else {
         // Lista -> tekst: pozycje wracaja jako linijki
         _syncItemsFromControllers();
@@ -572,7 +574,6 @@ class _NoteEditScreenState extends State<NoteEditScreen> {
 
   // Widok edycji listy (model Keep: ostatnia pozycja zawsze pusta)
   Widget _buildListEditor() {
-    _ensureTrailingEmpty();
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -618,16 +619,8 @@ class _NoteEditScreenState extends State<NoteEditScreen> {
                       hintText: isEmptyLast ? 'Dodaj pozycje...' : null,
                     ),
                     textCapitalization: TextCapitalization.sentences,
-                    onChanged: (v) {
-                      // Wpis w ostatnia pusta -> pojawia sie nowa pusta pod nia
-                      if (isLast && v.trim().isNotEmpty) {
-                        setState(() {
-                          _items[i] = _items[i].copyWith(text: v);
-                          _ensureTrailingEmpty();
-                        });
-                      }
-                    },
                     // Zatwierdzenie -> przejscie do nastepnej pozycji
+                    // (nowa pusta powstaje dopiero tutaj, nie przy pisaniu)
                     onSubmitted: (_) => _focusNext(i),
                   ),
                 ),
