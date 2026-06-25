@@ -584,29 +584,11 @@ class _FoldersScreenState extends State<FoldersScreen> {
               children: [
                 PopupMenuButton<String>(
                   onSelected: (v) {
-                    if (v == 'open') _toggleFolderExpanded(f);
-                    if (v == 'close') _toggleFolderExpanded(f);
                     if (v == 'rename') _renameFolder(f);
                     if (v == 'delete') _deleteFolder(f);
                     if (v == 'addnote') _addNote(folderId: f.id);
                   },
                   itemBuilder: (_) => [
-                    if (!f.expanded)
-                      const PopupMenuItem(
-                          value: 'open',
-                          child: Row(children: [
-                            Icon(Icons.folder_open, size: 20),
-                            SizedBox(width: 8),
-                            Text('Folder otwarty')
-                          ]))
-                    else
-                      const PopupMenuItem(
-                          value: 'close',
-                          child: Row(children: [
-                            Icon(Icons.folder, size: 20),
-                            SizedBox(width: 8),
-                            Text('Folder zamkniety')
-                          ])),
                     const PopupMenuItem(
                         value: 'addnote',
                         child: Row(children: [
