@@ -44,8 +44,37 @@ Future<void> _maybeAutoBackup() async {
   }
 }
 
-class NotatkiApp extends StatelessWidget {
+class NotatkiApp extends StatefulWidget {
   const NotatkiApp({super.key});
+
+  // Pozwala zmienic motyw z dowolnego miejsca (np. z ekranu ustawien)
+  static void setThemeMode(BuildContext context, ThemeMode mode) {
+    context.findAncestorStateOfType<_NotatkiAppState>()?.updateTheme(mode);
+  }
+
+  @override
+  State<NotatkiApp> createState() => _NotatkiAppState();
+}
+
+class _NotatkiAppState extends State<NotatkiApp> {
+  ThemeMode _themeMode = ThemeMode.system;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadTheme();
+  }
+
+  Future<void> _loadTheme() async {
+    final mode = await SettingsStore.getThemeMode();
+    if (!mounted) return;
+    setState(() => _themeMode = mode);
+  }
+
+  void updateTheme(ThemeMode mode) {
+    setState(() => _themeMode = mode);
+    SettingsStore.setThemeMode(mode);
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -70,7 +99,7 @@ class NotatkiApp extends StatelessWidget {
         ),
         fontFamily: 'Roboto',
       ),
-      themeMode: ThemeMode.system,
+      themeMode: _themeMode,
       // Jezyk polski - m.in. kalendarz i zegar po polsku
       locale: const Locale('pl', 'PL'),
       localizationsDelegates: const [

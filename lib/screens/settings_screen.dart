@@ -4,6 +4,7 @@ import 'package:package_info_plus/package_info_plus.dart';
 import '../notification_service.dart';
 import '../backup_service.dart';
 import '../settings_store.dart';
+import '../main.dart';
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
@@ -19,6 +20,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
   String? _autoBackupPath;
   int? _lastBackupMs;
   String _appVersion = '';
+  ThemeMode _themeMode = ThemeMode.system;
 
   @override
   void initState() {
@@ -26,6 +28,13 @@ class _SettingsScreenState extends State<SettingsScreen> {
     _loadStyle();
     _loadBackupSettings();
     _loadVersion();
+    _loadTheme();
+  }
+
+  Future<void> _loadTheme() async {
+    final mode = await SettingsStore.getThemeMode();
+    if (!mounted) return;
+    setState(() => _themeMode = mode);
   }
 
   Future<void> _loadVersion() async {
@@ -169,6 +178,29 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     child: ListView(
                       padding: const EdgeInsets.all(16),
                       children: [
+                        Padding(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 8, vertical: 8),
+                          child: Text('Motyw',
+                              style:
+                                  Theme.of(context).textTheme.titleMedium),
+                        ),
+                        Card(
+                          child: Column(
+                            children: [
+                              _buildThemeOption(ThemeMode.light, 'Jasny',
+                                  Icons.light_mode),
+                              const Divider(height: 1),
+                              _buildThemeOption(ThemeMode.dark, 'Ciemny',
+                                  Icons.dark_mode),
+                              const Divider(height: 1),
+                              _buildThemeOption(ThemeMode.system,
+                                  'Zgodnie z telefonem', Icons.brightness_auto),
+                            ],
+                          ),
+                        ),
+
+                        const SizedBox(height: 24),
                         Padding(
                           padding: const EdgeInsets.symmetric(
                               horizontal: 8, vertical: 8),
@@ -339,6 +371,24 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   ),
               ],
             ),
+    );
+  }
+
+  // Pojedyncza opcja wyboru motywu
+  Widget _buildThemeOption(ThemeMode mode, String title, IconData icon) {
+    return RadioListTile<ThemeMode>(
+      value: mode,
+      groupValue: _themeMode,
+      onChanged: (v) {
+        if (v == null) return;
+        setState(() => _themeMode = v);
+        NotatkiApp.setThemeMode(context, v); // zmiana natychmiast, bez restartu
+      },
+      title: Row(children: [
+        Icon(icon, size: 20),
+        const SizedBox(width: 12),
+        Text(title),
+      ]),
     );
   }
 
