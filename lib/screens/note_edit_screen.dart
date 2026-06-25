@@ -158,6 +158,35 @@ class _NoteEditScreenState extends State<NoteEditScreen> {
 
   void _clearReminder() => setState(() => _reminder = null);
 
+  // Odrzucenie nowej (jeszcze niezapisanej) notatki - bez zapisu
+  Future<void> _discardNew() async {
+    final hasContent = _titleController.text.trim().isNotEmpty ||
+        _contentController.text.trim().isNotEmpty ||
+        _items.any((e) => e.text.trim().isNotEmpty) ||
+        _newItemController.text.trim().isNotEmpty;
+    if (hasContent) {
+      final confirm = await showDialog<bool>(
+        context: context,
+        builder: (_) => AlertDialog(
+          title: const Text('Odrzucic notatke?'),
+          content: const Text('Wpisane dane nie zostana zapisane.'),
+          actions: [
+            TextButton(
+                onPressed: () => Navigator.pop(context, false),
+                child: const Text('Anuluj')),
+            FilledButton(
+                onPressed: () => Navigator.pop(context, true),
+                child: const Text('Odrzuc')),
+          ],
+        ),
+      );
+      if (confirm != true) return;
+    }
+    if (!mounted) return;
+    _skipSave = true; // nie zapisuj przy zamykaniu
+    Navigator.pop(context, false);
+  }
+
   // Usuniecie notatki do kosza z poziomu edytora
   Future<void> _deleteNote() async {
     final note = widget.note;
@@ -407,13 +436,14 @@ class _NoteEditScreenState extends State<NoteEditScreen> {
             tooltip: _pinned ? 'Odepnij' : 'Przypnij',
             onPressed: () => setState(() => _pinned = !_pinned),
           ),
-          // Usuwanie dostepne tylko dla istniejacej notatki
-          if (widget.note != null)
-            IconButton(
-              icon: const Icon(Icons.delete_outline),
-              tooltip: 'Usun do kosza',
-              onPressed: _deleteNote,
-            ),
+          // Kosz: dla istniejacej notatki -> do kosza,
+          // dla nowej -> odrzuc bez zapisu
+          IconButton(
+            icon: const Icon(Icons.delete_outline),
+            tooltip:
+                widget.note != null ? 'Usun do kosza' : 'Odrzuc notatke',
+            onPressed: widget.note != null ? _deleteNote : _discardNew,
+          ),
           IconButton(
             icon: const Icon(Icons.share),
             tooltip: 'Udostepnij',

@@ -126,9 +126,10 @@ class DatabaseHelper {
       case SortMode.alphabetical:
         return 'pinned DESC, title COLLATE NOCASE ASC';
       case SortMode.reminder:
-        // Najblizsze przypomnienia pierwsze; notatki bez przypomnienia na koncu.
-        // (reminderAt IS NULL) daje 0 dla majacych date, 1 dla pustych -> puste nizej.
-        return 'pinned DESC, (reminderAt IS NULL) ASC, reminderAt ASC';
+        // Najpierw notatki z przypomnieniem (najblizsze u gory),
+        // potem bez przypomnienia - od najnowszych.
+        return 'pinned DESC, (reminderAt IS NULL) ASC, '
+            'reminderAt ASC, createdAt DESC';
     }
   }
 
