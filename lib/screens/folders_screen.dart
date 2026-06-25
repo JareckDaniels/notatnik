@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'dart:convert';
 import 'package:intl/intl.dart';
 import '../folder.dart';
 import '../note.dart';
@@ -92,6 +93,65 @@ class _FoldersScreenState extends State<FoldersScreen> {
       _trashCount = trashCount;
       _loading = false;
     });
+  }
+
+  // Podglad pozycji listy na kafelku (do 5 pozycji)
+  List<Widget> _buildListPreview(Note note) {
+    List items;
+    try {
+      items = jsonDecode(note.listItems) as List;
+    } catch (_) {
+      return [];
+    }
+    if (items.isEmpty) return [];
+    final shown = items.take(5).toList();
+    final widgets = <Widget>[];
+    for (final raw in shown) {
+      final m = raw as Map<String, dynamic>;
+      final text = (m['text'] as String?) ?? '';
+      final checked = (m['checked'] as bool?) ?? false;
+      widgets.add(Padding(
+        padding: const EdgeInsets.only(bottom: 2),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Icon(
+              checked ? Icons.check_box : Icons.check_box_outline_blank,
+              size: 16,
+              color: checked
+                  ? Theme.of(context).colorScheme.outline
+                  : Theme.of(context).colorScheme.primary,
+            ),
+            const SizedBox(width: 6),
+            Expanded(
+              child: Text(
+                text,
+                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                      height: 1.2,
+                      decoration:
+                          checked ? TextDecoration.lineThrough : null,
+                      color: checked
+                          ? Theme.of(context).colorScheme.outline
+                          : null,
+                    ),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+          ],
+        ),
+      ));
+    }
+    if (items.length > 5) {
+      widgets.add(Text(
+        '+${items.length - 5} wiecej',
+        style: Theme.of(context)
+            .textTheme
+            .labelSmall
+            ?.copyWith(color: Theme.of(context).colorScheme.outline),
+      ));
+    }
+    return widgets;
   }
 
   // Formatuje date "po ludzku": dzis / wczoraj / data
@@ -676,7 +736,10 @@ class _FoldersScreenState extends State<FoldersScreen> {
                             size: 15,
                             color: Theme.of(context).colorScheme.primary),
                       ),
-                    if (note.content.isNotEmpty) ...[
+                    if (note.isList) ...[
+                      if (note.title.isNotEmpty) const SizedBox(height: 4),
+                      ..._buildListPreview(note),
+                    ] else if (note.content.isNotEmpty) ...[
                       if (note.title.isNotEmpty) const SizedBox(height: 2),
                       Text(
                         note.content,

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'dart:convert';
 import 'package:intl/intl.dart';
 import 'package:share_plus/share_plus.dart';
 import '../note.dart';
@@ -22,6 +23,9 @@ class _NoteEditScreenState extends State<NoteEditScreen> {
   late TextEditingController _contentController;
   DateTime? _reminder;
   bool _forceAlarm = false;
+  bool _isList = false;
+  List<ListItem> _items = [];
+  final TextEditingController _newItemController = TextEditingController();
   int _colorIndex = 0;
   bool _pinned = false;
   int? _folderId;
@@ -44,7 +48,23 @@ class _NoteEditScreenState extends State<NoteEditScreen> {
     _forceAlarm = widget.note?.forceAlarm ?? false;
     _pinned = widget.note?.pinned ?? false;
     _folderId = widget.note?.folderId ?? widget.defaultFolderId;
+    _isList = widget.note?.isList ?? false;
+    _loadListItems();
     _loadFolders();
+  }
+
+  // Wczytuje pozycje listy z JSON zapisanego w notatce
+  void _loadListItems() {
+    if (widget.note?.listItems != null) {
+      try {
+        final decoded = jsonDecode(widget.note!.listItems) as List;
+        _items = decoded
+            .map((e) => ListItem.fromJson(e as Map<String, dynamic>))
+            .toList();
+      } catch (_) {
+        _items = [];
+      }
+    }
   }
 
   // Nazwa aktualnie wybranego folderu (do podpisu zwinietej sekcji)
@@ -64,6 +84,7 @@ class _NoteEditScreenState extends State<NoteEditScreen> {
   void dispose() {
     _titleController.dispose();
     _contentController.dispose();
+    _newItemController.dispose();
     super.dispose();
   }
 
@@ -133,8 +154,16 @@ class _NoteEditScreenState extends State<NoteEditScreen> {
   // Udostepnienie tresci notatki (mail, komunikatory, schowek...)
   Future<void> _shareNote() async {
     final title = _titleController.text.trim();
-    final content = _contentController.text.trim();
-    final text = title.isEmpty ? content : '$title\n\n$content';
+    String body;
+    if (_isList) {
+      // Lista -> tekst z haczykami
+      body = _items
+          .map((e) => '${e.checked ? "[x]" : "[ ]"} ${e.text}')
+          .join('\n');
+    } else {
+      body = _contentController.text.trim();
+    }
+    final text = title.isEmpty ? body : '$title\n\n$body';
     if (text.trim().isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Notatka jest pusta')),
@@ -144,11 +173,70 @@ class _NoteEditScreenState extends State<NoteEditScreen> {
     await Share.share(text, subject: title.isEmpty ? null : title);
   }
 
+  // Przelacza miedzy trybem tekstowym a lista
+  void _toggleListMode() {
+    setState(() {
+      if (!_isList) {
+        // Tekst -> lista: kazda niepusta linijka staje sie pozycja
+        final text = _contentController.text.trim();
+        if (text.isNotEmpty && _items.isEmpty) {
+          _items = text
+              .split('\n')
+              .where((l) => l.trim().isNotEmpty)
+              .map((l) => ListItem(text: l.trim()))
+              .toList();
+        }
+        _isList = true;
+      } else {
+        // Lista -> tekst: pozycje wracaja jako linijki
+        if (_items.isNotEmpty) {
+          _contentController.text =
+              _items.map((e) => e.text).join('\n');
+        }
+        _isList = false;
+      }
+    });
+  }
+
+  // Sortuje: nieodhaczone na gorze (w swojej kolejnosci), odhaczone na dole
+  void _sortItems() {
+    final unchecked = _items.where((e) => !e.checked).toList();
+    final checked = _items.where((e) => e.checked).toList();
+    _items = [...unchecked, ...checked];
+  }
+
+  void _addItem() {
+    final text = _newItemController.text.trim();
+    if (text.isEmpty) return;
+    setState(() {
+      _items.add(ListItem(text: text));
+      _newItemController.clear();
+      _sortItems();
+    });
+  }
+
+  void _toggleItem(int index) {
+    setState(() {
+      _items[index] = _items[index].copyWith(checked: !_items[index].checked);
+      _sortItems();
+    });
+  }
+
+  void _removeItem(int index) {
+    setState(() => _items.removeAt(index));
+  }
+
+  void _editItem(int index, String text) {
+    _items[index] = _items[index].copyWith(text: text);
+  }
+
   Future<void> _save() async {
     final title = _titleController.text.trim();
     final content = _contentController.text.trim();
+    final itemsJson = jsonEncode(_items.map((e) => e.toJson()).toList());
 
-    if (title.isEmpty && content.isEmpty) {
+    // Notatka pusta = brak tytulu, tresci ORAZ pozycji listy
+    if (title.isEmpty && content.isEmpty && _items.isEmpty) {
       Navigator.pop(context, false);
       return;
     }
@@ -165,6 +253,8 @@ class _NoteEditScreenState extends State<NoteEditScreen> {
         pinned: _pinned,
         folderId: _folderId,
         forceAlarm: _forceAlarm,
+        isList: _isList,
+        listItems: itemsJson,
       );
       final id = await DatabaseHelper.instance.insertNote(note);
       await _scheduleIfNeeded(id, title, content);
@@ -179,6 +269,8 @@ class _NoteEditScreenState extends State<NoteEditScreen> {
         folderId: _folderId,
         clearFolder: _folderId == null,
         forceAlarm: _forceAlarm,
+        isList: _isList,
+        listItems: itemsJson,
       );
       await DatabaseHelper.instance.updateNote(updated);
       await NotificationService.instance.cancelReminder(widget.note!.id!);
@@ -215,6 +307,11 @@ class _NoteEditScreenState extends State<NoteEditScreen> {
         backgroundColor: bgColor,
         title: Text(widget.note == null ? 'Nowa notatka' : 'Edycja'),
         actions: [
+          IconButton(
+            icon: Icon(_isList ? Icons.subject : Icons.checklist),
+            tooltip: _isList ? 'Zmien na tekst' : 'Zmien na liste',
+            onPressed: _toggleListMode,
+          ),
           IconButton(
             icon: Icon(_pinned ? Icons.push_pin : Icons.push_pin_outlined),
             tooltip: _pinned ? 'Odepnij' : 'Przypnij',
@@ -253,14 +350,19 @@ class _NoteEditScreenState extends State<NoteEditScreen> {
                 textCapitalization: TextCapitalization.sentences,
               ),
               const Divider(),
-              TextField(
-                controller: _contentController,
-                maxLines: null,
-                minLines: 8,
-                decoration: const InputDecoration(
-                    hintText: 'Tresc notatki...', border: InputBorder.none),
-                textCapitalization: TextCapitalization.sentences,
-              ),
+              // Tryb tekstowy albo lista
+              if (!_isList)
+                TextField(
+                  controller: _contentController,
+                  maxLines: null,
+                  minLines: 8,
+                  decoration: const InputDecoration(
+                      hintText: 'Tresc notatki...',
+                      border: InputBorder.none),
+                  textCapitalization: TextCapitalization.sentences,
+                )
+              else
+                _buildListEditor(),
               const SizedBox(height: 16),
 
               // Przypomnienie (na gorze - najczesciej uzywane)
@@ -381,6 +483,77 @@ class _NoteEditScreenState extends State<NoteEditScreen> {
           ),
         ),
       ),
+    );
+  }
+
+  // Widok edycji listy: pozycje z checkboxami + pole dodawania
+  Widget _buildListEditor() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // Lista pozycji
+        ...List.generate(_items.length, (i) {
+          final item = _items[i];
+          return Padding(
+            padding: const EdgeInsets.symmetric(vertical: 2),
+            child: Row(
+              children: [
+                Checkbox(
+                  value: item.checked,
+                  onChanged: (_) => _toggleItem(i),
+                ),
+                Expanded(
+                  child: TextFormField(
+                    initialValue: item.text,
+                    onChanged: (v) => _editItem(i, v),
+                    style: TextStyle(
+                      decoration: item.checked
+                          ? TextDecoration.lineThrough
+                          : null,
+                      color: item.checked
+                          ? Theme.of(context).colorScheme.outline
+                          : null,
+                    ),
+                    decoration: const InputDecoration(
+                      isDense: true,
+                      border: InputBorder.none,
+                    ),
+                  ),
+                ),
+                IconButton(
+                  icon: const Icon(Icons.close, size: 18),
+                  visualDensity: VisualDensity.compact,
+                  onPressed: () => _removeItem(i),
+                ),
+              ],
+            ),
+          );
+        }),
+        // Pole dodawania nowej pozycji
+        Padding(
+          padding: const EdgeInsets.symmetric(vertical: 4),
+          child: Row(
+            children: [
+              const SizedBox(width: 12),
+              Icon(Icons.add,
+                  size: 20, color: Theme.of(context).colorScheme.primary),
+              const SizedBox(width: 12),
+              Expanded(
+                child: TextField(
+                  controller: _newItemController,
+                  decoration: const InputDecoration(
+                    hintText: 'Dodaj pozycje...',
+                    isDense: true,
+                    border: InputBorder.none,
+                  ),
+                  textCapitalization: TextCapitalization.sentences,
+                  onSubmitted: (_) => _addItem(),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
     );
   }
 

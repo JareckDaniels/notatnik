@@ -11,6 +11,8 @@ class Note {
   final int position; // reczna kolejnosc (mniejsze = wyzej)
   final int? deletedAt; // timestamp wyrzucenia do kosza (null = nie w koszu)
   final bool forceAlarm; // true = ta notatka dzwoni jak budzik niezaleznie od globalnego
+  final bool isList; // true = notatka jest lista zadan
+  final String listItems; // pozycje listy jako JSON (gdy isList)
 
   Note({
     this.id,
@@ -24,6 +26,8 @@ class Note {
     this.position = 0,
     this.deletedAt,
     this.forceAlarm = false,
+    this.isList = false,
+    this.listItems = '[]',
   });
 
   // Konwersja do mapy (zapis do bazy)
@@ -40,6 +44,8 @@ class Note {
       'position': position,
       'deletedAt': deletedAt,
       'forceAlarm': forceAlarm ? 1 : 0,
+      'isList': isList ? 1 : 0,
+      'listItems': listItems,
     };
   }
 
@@ -57,6 +63,8 @@ class Note {
       position: (map['position'] as int?) ?? 0,
       deletedAt: map['deletedAt'] as int?,
       forceAlarm: (map['forceAlarm'] as int?) == 1,
+      isList: (map['isList'] as int?) == 1,
+      listItems: (map['listItems'] as String?) ?? '[]',
     );
   }
 
@@ -79,6 +87,8 @@ class Note {
     int? position,
     int? deletedAt,
     bool? forceAlarm,
+    bool? isList,
+    String? listItems,
     bool clearReminder = false,
     bool clearDeleted = false,
     bool clearFolder = false,
@@ -95,6 +105,26 @@ class Note {
       position: position ?? this.position,
       deletedAt: clearDeleted ? null : (deletedAt ?? this.deletedAt),
       forceAlarm: forceAlarm ?? this.forceAlarm,
+      isList: isList ?? this.isList,
+      listItems: listItems ?? this.listItems,
     );
   }
+}
+
+// Pojedyncza pozycja listy zadan
+class ListItem {
+  final String text;
+  final bool checked;
+
+  ListItem({required this.text, this.checked = false});
+
+  Map<String, dynamic> toJson() => {'text': text, 'checked': checked};
+
+  factory ListItem.fromJson(Map<String, dynamic> json) => ListItem(
+        text: (json['text'] as String?) ?? '',
+        checked: (json['checked'] as bool?) ?? false,
+      );
+
+  ListItem copyWith({String? text, bool? checked}) =>
+      ListItem(text: text ?? this.text, checked: checked ?? this.checked);
 }
