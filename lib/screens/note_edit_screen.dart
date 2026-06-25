@@ -28,7 +28,6 @@ class _NoteEditScreenState extends State<NoteEditScreen> {
   // Kontrolery i ogniska dla pozycji listy (zywe pola tekstowe)
   final List<TextEditingController> _itemControllers = [];
   final List<FocusNode> _itemFocusNodes = [];
-  final TextEditingController _newItemController = TextEditingController();
   int _colorIndex = 0;
   bool _pinned = false;
   int? _folderId;
@@ -112,7 +111,6 @@ class _NoteEditScreenState extends State<NoteEditScreen> {
   void dispose() {
     _titleController.dispose();
     _contentController.dispose();
-    _newItemController.dispose();
     for (final c in _itemControllers) {
       c.dispose();
     }
@@ -162,8 +160,7 @@ class _NoteEditScreenState extends State<NoteEditScreen> {
   Future<void> _discardNew() async {
     final hasContent = _titleController.text.trim().isNotEmpty ||
         _contentController.text.trim().isNotEmpty ||
-        _items.any((e) => e.text.trim().isNotEmpty) ||
-        _newItemController.text.trim().isNotEmpty;
+        _items.any((e) => e.text.trim().isNotEmpty);
     if (hasContent) {
       final confirm = await showDialog<bool>(
         context: context,
@@ -285,39 +282,10 @@ class _NoteEditScreenState extends State<NoteEditScreen> {
       ..addAll(newNodes);
   }
 
-  // Dodaje pozycje z dolnego pola "Dodaj pozycje..."
-  void _addItem() {
-    final text = _newItemController.text.trim();
-    if (text.isEmpty) return;
-    setState(() {
-      _items.add(ListItem(text: text));
-      _itemControllers.add(TextEditingController(text: text));
-      _itemFocusNodes.add(FocusNode());
-      _newItemController.clear();
-      _sortItems();
-    });
-  }
-
-  // Enter na pozycji [index] -> nowa pusta pozycja zaraz pod nia + focus
-  void _addItemAfter(int index) {
-    _syncItemsFromControllers();
-    setState(() {
-      final insertAt = index + 1;
-      _items.insert(insertAt, ListItem(text: ''));
-      _itemControllers.insert(insertAt, TextEditingController());
-      _itemFocusNodes.insert(insertAt, FocusNode());
-    });
-    // Przenies kursor do nowej pozycji po odrysowaniu
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (index + 1 < _itemFocusNodes.length) {
-        _itemFocusNodes[index + 1].requestFocus();
-      }
-    });
-  }
-
   void _toggleItem(int index) {
     setState(() {
       _items[index] = _items[index].copyWith(checked: !_items[index].checked);
+      _cleanupEmptyItems(); // usun ewentualne puste ze srodka
       _sortItems();
     });
   }
@@ -602,22 +570,35 @@ class _NoteEditScreenState extends State<NoteEditScreen> {
     );
   }
 
-  // Widok edycji listy: pozycje z checkboxami + pole dodawania
+  // Widok edycji listy (model Keep: ostatnia pozycja zawsze pusta)
   Widget _buildListEditor() {
+    _ensureTrailingEmpty();
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // Lista pozycji
         ...List.generate(_items.length, (i) {
           final item = _items[i];
+          final isLast = i == _items.length - 1;
+          final isEmptyLast = isLast &&
+              _itemControllers[i].text.trim().isEmpty &&
+              !item.checked;
           return Padding(
             padding: const EdgeInsets.symmetric(vertical: 2),
             child: Row(
               children: [
-                Checkbox(
-                  value: item.checked,
-                  onChanged: (_) => _toggleItem(i),
-                ),
+                // Ostatnia pusta pozycja ma "+" zamiast checkboxa
+                if (isEmptyLast)
+                  SizedBox(
+                    width: 48,
+                    child: Icon(Icons.add,
+                        size: 20,
+                        color: Theme.of(context).colorScheme.primary),
+                  )
+                else
+                  Checkbox(
+                    value: item.checked,
+                    onChanged: (_) => _toggleItem(i),
+                  ),
                 Expanded(
                   child: TextField(
                     controller: _itemControllers[i],
@@ -631,50 +612,83 @@ class _NoteEditScreenState extends State<NoteEditScreen> {
                           ? Theme.of(context).colorScheme.outline
                           : null,
                     ),
-                    decoration: const InputDecoration(
+                    decoration: InputDecoration(
                       isDense: true,
                       border: InputBorder.none,
+                      hintText: isEmptyLast ? 'Dodaj pozycje...' : null,
                     ),
                     textCapitalization: TextCapitalization.sentences,
-                    // Enter -> nowa pozycja zaraz pod ta
-                    onSubmitted: (_) => _addItemAfter(i),
+                    onChanged: (v) {
+                      // Wpis w ostatnia pusta -> pojawia sie nowa pusta pod nia
+                      if (isLast && v.trim().isNotEmpty) {
+                        setState(() {
+                          _items[i] = _items[i].copyWith(text: v);
+                          _ensureTrailingEmpty();
+                        });
+                      }
+                    },
+                    // Zatwierdzenie -> przejscie do nastepnej pozycji
+                    onSubmitted: (_) => _focusNext(i),
                   ),
                 ),
-                IconButton(
-                  icon: const Icon(Icons.close, size: 18),
-                  visualDensity: VisualDensity.compact,
-                  onPressed: () => _removeItem(i),
-                ),
+                // Krzyzyk tylko dla niepustych pozycji
+                if (!isEmptyLast)
+                  IconButton(
+                    icon: const Icon(Icons.close, size: 18),
+                    visualDensity: VisualDensity.compact,
+                    onPressed: () => _removeItem(i),
+                  )
+                else
+                  const SizedBox(width: 48),
               ],
             ),
           );
         }),
-        // Pole dodawania nowej pozycji
-        Padding(
-          padding: const EdgeInsets.symmetric(vertical: 4),
-          child: Row(
-            children: [
-              const SizedBox(width: 12),
-              Icon(Icons.add,
-                  size: 20, color: Theme.of(context).colorScheme.primary),
-              const SizedBox(width: 12),
-              Expanded(
-                child: TextField(
-                  controller: _newItemController,
-                  decoration: const InputDecoration(
-                    hintText: 'Dodaj pozycje...',
-                    isDense: true,
-                    border: InputBorder.none,
-                  ),
-                  textCapitalization: TextCapitalization.sentences,
-                  onSubmitted: (_) => _addItem(),
-                ),
-              ),
-            ],
-          ),
-        ),
       ],
     );
+  }
+
+  // Przenosi focus do nastepnej pozycji; jesli brak - tworzy pusta
+  void _focusNext(int index) {
+    _syncItemsFromControllers();
+    setState(() => _ensureTrailingEmpty());
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final next = index + 1;
+      if (next < _itemFocusNodes.length) {
+        FocusScope.of(context).requestFocus(_itemFocusNodes[next]);
+      }
+    });
+  }
+
+  // Lekka wersja - tylko dodaje pusta na koniec jesli trzeba (bezpieczna w build)
+  void _ensureTrailingEmpty() {
+    final lastCtrl =
+        _itemControllers.isNotEmpty ? _itemControllers.last : null;
+    final last = _items.isNotEmpty ? _items.last : null;
+    final lastEmpty = last != null &&
+        lastCtrl != null &&
+        lastCtrl.text.trim().isEmpty &&
+        !last.checked;
+    if (!lastEmpty) {
+      _items.add(ListItem(text: ''));
+      _itemControllers.add(TextEditingController());
+      _itemFocusNodes.add(FocusNode());
+    }
+  }
+
+  // Pelne porzadkowanie - usuwa puste ze srodka i dba o pusta na koncu.
+  // Wolane poza faza budowania (focus, toggle), nie w samym build.
+  void _cleanupEmptyItems() {
+    for (int i = _items.length - 2; i >= 0; i--) {
+      final empty =
+          _itemControllers[i].text.trim().isEmpty && !_items[i].checked;
+      if (empty) {
+        _items.removeAt(i);
+        _itemControllers.removeAt(i).dispose();
+        _itemFocusNodes.removeAt(i).dispose();
+      }
+    }
+    _ensureTrailingEmpty();
   }
 
   // Sekcja zawsze widoczna (np. przypomnienie)
