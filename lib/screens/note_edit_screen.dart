@@ -25,6 +25,9 @@ class _NoteEditScreenState extends State<NoteEditScreen> {
   bool _forceAlarm = false;
   bool _isList = false;
   List<ListItem> _items = [];
+  // Kontrolery i ogniska dla pozycji listy (zywe pola tekstowe)
+  final List<TextEditingController> _itemControllers = [];
+  final List<FocusNode> _itemFocusNodes = [];
   final TextEditingController _newItemController = TextEditingController();
   int _colorIndex = 0;
   bool _pinned = false;
@@ -33,6 +36,7 @@ class _NoteEditScreenState extends State<NoteEditScreen> {
   // Stan rozwiniecia zwijanych sekcji
   bool _colorExpanded = false;
   bool _folderExpanded = false;
+  bool _skipSave = false; // gdy true, PopScope nie zapisuje (np. po usunieciu)
 
   @override
   void initState() {
@@ -53,7 +57,7 @@ class _NoteEditScreenState extends State<NoteEditScreen> {
     _loadFolders();
   }
 
-  // Wczytuje pozycje listy z JSON zapisanego w notatce
+  // Wczytuje pozycje listy z JSON i tworzy dla nich kontrolery
   void _loadListItems() {
     if (widget.note?.listItems != null) {
       try {
@@ -64,6 +68,30 @@ class _NoteEditScreenState extends State<NoteEditScreen> {
       } catch (_) {
         _items = [];
       }
+    }
+    _rebuildItemControllers();
+  }
+
+  // Odtwarza kontrolery i ogniska tak, by bylo ich tyle co pozycji
+  void _rebuildItemControllers() {
+    for (final c in _itemControllers) {
+      c.dispose();
+    }
+    for (final f in _itemFocusNodes) {
+      f.dispose();
+    }
+    _itemControllers.clear();
+    _itemFocusNodes.clear();
+    for (final item in _items) {
+      _itemControllers.add(TextEditingController(text: item.text));
+      _itemFocusNodes.add(FocusNode());
+    }
+  }
+
+  // Przepisuje aktualne teksty z kontrolerow do _items (przed zapisem/sortem)
+  void _syncItemsFromControllers() {
+    for (int i = 0; i < _items.length && i < _itemControllers.length; i++) {
+      _items[i] = _items[i].copyWith(text: _itemControllers[i].text);
     }
   }
 
@@ -85,6 +113,12 @@ class _NoteEditScreenState extends State<NoteEditScreen> {
     _titleController.dispose();
     _contentController.dispose();
     _newItemController.dispose();
+    for (final c in _itemControllers) {
+      c.dispose();
+    }
+    for (final f in _itemFocusNodes) {
+      f.dispose();
+    }
     super.dispose();
   }
 
@@ -148,6 +182,7 @@ class _NoteEditScreenState extends State<NoteEditScreen> {
     await NotificationService.instance.cancelReminder(note!.id!);
     await DatabaseHelper.instance.moveToTrash(note.id!);
     if (!mounted) return;
+    _skipSave = true; // nie zapisuj ponownie przy zamykaniu
     Navigator.pop(context, true);
   }
 
@@ -185,33 +220,69 @@ class _NoteEditScreenState extends State<NoteEditScreen> {
               .where((l) => l.trim().isNotEmpty)
               .map((l) => ListItem(text: l.trim()))
               .toList();
+          _rebuildItemControllers();
         }
         _isList = true;
       } else {
         // Lista -> tekst: pozycje wracaja jako linijki
+        _syncItemsFromControllers();
         if (_items.isNotEmpty) {
-          _contentController.text =
-              _items.map((e) => e.text).join('\n');
+          _contentController.text = _items.map((e) => e.text).join('\n');
         }
         _isList = false;
       }
     });
   }
 
-  // Sortuje: nieodhaczone na gorze (w swojej kolejnosci), odhaczone na dole
+  // Sortuje: nieodhaczone na gorze, odhaczone na dole.
+  // Kontrolery i ogniska przestawiamy razem z pozycjami, by sie nie rozjechaly.
   void _sortItems() {
-    final unchecked = _items.where((e) => !e.checked).toList();
-    final checked = _items.where((e) => e.checked).toList();
-    _items = [...unchecked, ...checked];
+    _syncItemsFromControllers();
+    final indexed = List.generate(_items.length, (i) => i);
+    indexed.sort((a, b) {
+      final ca = _items[a].checked ? 1 : 0;
+      final cb = _items[b].checked ? 1 : 0;
+      if (ca != cb) return ca - cb;
+      return a.compareTo(b); // stabilnie - zachowaj kolejnosc
+    });
+    _items = [for (final i in indexed) _items[i]];
+    final newCtrls = [for (final i in indexed) _itemControllers[i]];
+    final newNodes = [for (final i in indexed) _itemFocusNodes[i]];
+    _itemControllers
+      ..clear()
+      ..addAll(newCtrls);
+    _itemFocusNodes
+      ..clear()
+      ..addAll(newNodes);
   }
 
+  // Dodaje pozycje z dolnego pola "Dodaj pozycje..."
   void _addItem() {
     final text = _newItemController.text.trim();
     if (text.isEmpty) return;
     setState(() {
       _items.add(ListItem(text: text));
+      _itemControllers.add(TextEditingController(text: text));
+      _itemFocusNodes.add(FocusNode());
       _newItemController.clear();
       _sortItems();
+    });
+  }
+
+  // Enter na pozycji [index] -> nowa pusta pozycja zaraz pod nia + focus
+  void _addItemAfter(int index) {
+    _syncItemsFromControllers();
+    setState(() {
+      final insertAt = index + 1;
+      _items.insert(insertAt, ListItem(text: ''));
+      _itemControllers.insert(insertAt, TextEditingController());
+      _itemFocusNodes.insert(insertAt, FocusNode());
+    });
+    // Przenies kursor do nowej pozycji po odrysowaniu
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (index + 1 < _itemFocusNodes.length) {
+        _itemFocusNodes[index + 1].requestFocus();
+      }
     });
   }
 
@@ -223,21 +294,25 @@ class _NoteEditScreenState extends State<NoteEditScreen> {
   }
 
   void _removeItem(int index) {
-    setState(() => _items.removeAt(index));
+    setState(() {
+      _items.removeAt(index);
+      _itemControllers.removeAt(index).dispose();
+      _itemFocusNodes.removeAt(index).dispose();
+    });
   }
 
-  void _editItem(int index, String text) {
-    _items[index] = _items[index].copyWith(text: text);
-  }
-
-  Future<void> _save() async {
+  Future<void> _save({bool pop = true}) async {
     final title = _titleController.text.trim();
     final content = _contentController.text.trim();
-    final itemsJson = jsonEncode(_items.map((e) => e.toJson()).toList());
+    _syncItemsFromControllers();
+    // Pomijamy puste pozycje przy zapisie
+    final cleanItems = _items.where((e) => e.text.trim().isNotEmpty).toList();
+    final itemsJson =
+        jsonEncode(cleanItems.map((e) => e.toJson()).toList());
 
     // Notatka pusta = brak tytulu, tresci ORAZ pozycji listy
-    if (title.isEmpty && content.isEmpty && _items.isEmpty) {
-      Navigator.pop(context, false);
+    if (title.isEmpty && content.isEmpty && cleanItems.isEmpty) {
+      if (pop && mounted) Navigator.pop(context, false);
       return;
     }
 
@@ -278,7 +353,7 @@ class _NoteEditScreenState extends State<NoteEditScreen> {
     }
 
     if (!mounted) return;
-    Navigator.pop(context, true);
+    if (pop) Navigator.pop(context, true);
   }
 
   Future<void> _scheduleIfNeeded(int id, String title, String content) async {
@@ -301,11 +376,26 @@ class _NoteEditScreenState extends State<NoteEditScreen> {
         ? DateFormat('dd.MM.yyyy, HH:mm').format(_reminder!)
         : null;
 
-    return Scaffold(
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, result) async {
+        if (didPop) return;
+        if (_skipSave) {
+          if (mounted) Navigator.pop(context, true);
+          return;
+        }
+        await _save(pop: false); // auto-zapis przy wyjsciu (wstecz/gest)
+        if (mounted) Navigator.pop(context, true);
+      },
+      child: Scaffold(
       backgroundColor: bgColor,
       appBar: AppBar(
         backgroundColor: bgColor,
-        title: Text(widget.note == null ? 'Nowa notatka' : 'Edycja'),
+        titleSpacing: 0,
+        title: Text(
+          widget.note == null ? 'Nowa notatka' : 'Edycja',
+          style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w400),
+        ),
         actions: [
           IconButton(
             icon: Icon(_isList ? Icons.subject : Icons.checklist),
@@ -328,11 +418,6 @@ class _NoteEditScreenState extends State<NoteEditScreen> {
             icon: const Icon(Icons.share),
             tooltip: 'Udostepnij',
             onPressed: _shareNote,
-          ),
-          IconButton(
-            icon: const Icon(Icons.check),
-            tooltip: 'Zapisz',
-            onPressed: _save,
           ),
         ],
       ),
@@ -483,6 +568,7 @@ class _NoteEditScreenState extends State<NoteEditScreen> {
           ),
         ),
       ),
+      ),
     );
   }
 
@@ -503,9 +589,10 @@ class _NoteEditScreenState extends State<NoteEditScreen> {
                   onChanged: (_) => _toggleItem(i),
                 ),
                 Expanded(
-                  child: TextFormField(
-                    initialValue: item.text,
-                    onChanged: (v) => _editItem(i, v),
+                  child: TextField(
+                    controller: _itemControllers[i],
+                    focusNode: _itemFocusNodes[i],
+                    textInputAction: TextInputAction.next,
                     style: TextStyle(
                       decoration: item.checked
                           ? TextDecoration.lineThrough
@@ -518,6 +605,9 @@ class _NoteEditScreenState extends State<NoteEditScreen> {
                       isDense: true,
                       border: InputBorder.none,
                     ),
+                    textCapitalization: TextCapitalization.sentences,
+                    // Enter -> nowa pozycja zaraz pod ta
+                    onSubmitted: (_) => _addItemAfter(i),
                   ),
                 ),
                 IconButton(
