@@ -484,7 +484,8 @@ class _FoldersScreenState extends State<FoldersScreen> {
       child: ConstrainedBox(
         constraints: const BoxConstraints(maxWidth: 900),
         child: ListView(
-          padding: const EdgeInsets.all(12),
+          padding: EdgeInsets.fromLTRB(
+              12, 12, 12, 12 + MediaQuery.of(context).viewPadding.bottom + 24),
           children: [
             // --- LUZNE NOTATKI (nad folderami) ---
             if (_looseNotes.isNotEmpty) ...[

@@ -425,7 +425,8 @@ class _NoteEditScreenState extends State<NoteEditScreen> {
         child: ConstrainedBox(
           constraints: const BoxConstraints(maxWidth: 800),
           child: ListView(
-            padding: const EdgeInsets.all(16),
+            padding: EdgeInsets.fromLTRB(
+                16, 16, 16, 16 + MediaQuery.of(context).viewPadding.bottom + 24),
             children: [
               TextField(
                 controller: _titleController,

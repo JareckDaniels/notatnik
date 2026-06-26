@@ -141,7 +141,8 @@ class _TrashScreenState extends State<TrashScreen> {
                         child: ConstrainedBox(
                           constraints: const BoxConstraints(maxWidth: 900),
                           child: ListView.builder(
-                            padding: const EdgeInsets.all(12),
+                            padding: EdgeInsets.fromLTRB(12, 12, 12,
+                                12 + MediaQuery.of(context).viewPadding.bottom + 24),
                             itemCount: _notes.length,
                             itemBuilder: (_, i) => _trashTile(_notes[i]),
                           ),
