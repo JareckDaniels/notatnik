@@ -100,7 +100,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Blad eksportu: $e')),
+          SnackBar(content: Text('Błąd eksportu: $e')),
         );
       }
     } finally {
@@ -126,7 +126,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Blad zapisu: $e')),
+          SnackBar(content: Text('Błąd zapisu: $e')),
         );
       }
     } finally {
@@ -211,18 +211,18 @@ class _SettingsScreenState extends State<SettingsScreen> {
                         ),
                         _buildOption(
                             ReminderStyle.soundNotification,
-                            'Powiadomienie z dzwiekiem',
-                            'Standardowe powiadomienie z dzwiekiem',
+                            'Powiadomienie z dźwiękiem',
+                            'Standardowe powiadomienie z dźwiękiem',
                             Icons.notifications_active),
                         _buildOption(
                             ReminderStyle.silentNotification,
                             'Powiadomienie ciche',
-                            'Powiadomienie bez dzwieku',
+                            'Powiadomienie bez dźwięku',
                             Icons.notifications_off),
                         _buildOption(
                             ReminderStyle.fullScreenAlarm,
                             'Pełnoekranowy alarm',
-                            'Alarm na caly ekran, jak budzik',
+                            'Alarm na cały ekran, jak budzik',
                             Icons.alarm),
 
                         const SizedBox(height: 24),
@@ -238,9 +238,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
                             children: [
                               ListTile(
                                 leading: const Icon(Icons.upload_file),
-                                title: const Text('Eksportuj (wyslij)'),
+                                title: const Text('Eksportuj (wyślij)'),
                                 subtitle: const Text(
-                                    'Udostepnij plik kopii (mail, dysk, komunikator)'),
+                                    'Udostępnij plik kopii (mail, dysk, komunikator)'),
                                 onTap: _busy ? null : _export,
                               ),
                               const Divider(height: 1),
@@ -338,7 +338,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                               Expanded(
                                 child: Text(
                                   'Kopię warto zrobić przed zmianą telefonu. '
-                                  'Plik mozesz wyslac sobie mailem lub zapisac na dysku.',
+                                  'Plik możesz wysłać sobie mailem lub zapisać na dysku.',
                                   style:
                                       Theme.of(context).textTheme.bodySmall,
                                 ),

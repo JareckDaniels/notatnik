@@ -28,12 +28,12 @@ class NoteColors {
   static const List<String> names = [
     'Domyślny',
     'Czerwony',
-    'Pomaranczowy',
-    'Zolty',
+    'Pomarańczowy',
+    'Żółty',
     'Zielony',
     'Niebieski',
     'Fioletowy',
-    'Rozowy',
+    'Różowy',
   ];
 
   static Color? colorFor(int index, Brightness brightness) {

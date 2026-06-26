@@ -89,7 +89,7 @@ class BackupService {
       }
       return file.path;
     } catch (e) {
-      debugPrint('Blad auto-backupu: $e');
+      debugPrint('Błąd auto-backupu: $e');
       return null;
     }
   }
@@ -113,7 +113,7 @@ class BackupService {
         content = await File(f.path!).readAsString();
       } else {
         return ImportResult(
-            success: false, message: 'Nie udalo sie odczytac pliku');
+            success: false, message: 'Nie udało się odczytać pliku');
       }
 
       final data = jsonDecode(content) as Map<String, dynamic>;
@@ -137,10 +137,10 @@ class BackupService {
         importedNotes: count,
       );
     } catch (e) {
-      debugPrint('Blad importu: $e');
+      debugPrint('Błąd importu: $e');
       return ImportResult(
         success: false,
-        message: 'Plik jest nieprawidlowy lub uszkodzony',
+        message: 'Plik jest nieprawidłowy lub uszkodzony',
       );
     }
   }

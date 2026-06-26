@@ -73,7 +73,7 @@ class _TrashScreenState extends State<TrashScreen> {
               child: const Text('Anuluj')),
           FilledButton(
               onPressed: () => Navigator.pop(context, true),
-              child: const Text('Oprozsnij')),
+              child: const Text('Opróżnij')),
         ],
       ),
     );

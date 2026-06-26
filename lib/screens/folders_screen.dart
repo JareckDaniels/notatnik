@@ -161,7 +161,7 @@ class _FoldersScreenState extends State<FoldersScreen> {
     final today = DateTime(now.year, now.month, now.day);
     final that = DateTime(d.year, d.month, d.day);
     final diff = today.difference(that).inDays;
-    if (diff == 0) return 'Dzis, ${DateFormat('HH:mm').format(d)}';
+    if (diff == 0) return 'Dziś, ${DateFormat('HH:mm').format(d)}';
     if (diff == 1) return 'Wczoraj, ${DateFormat('HH:mm').format(d)}';
     if (diff < 7) return DateFormat('EEEE, HH:mm', 'pl').format(d);
     return DateFormat('dd.MM.yyyy').format(d);
@@ -301,11 +301,11 @@ class _FoldersScreenState extends State<FoldersScreen> {
               child: Text('Sortowanie',
                   style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
             ),
-            _sortTile(SortMode.manual, 'Wlasna kolejnosc (przeciaganie)',
+            _sortTile(SortMode.manual, 'Własna kolejność (przeciąganie)',
                 Icons.drag_handle),
-            _sortTile(SortMode.newest, 'Najnowsze na gorze',
+            _sortTile(SortMode.newest, 'Najnowsze na górze',
                 Icons.arrow_downward),
-            _sortTile(SortMode.oldest, 'Najstarsze na gorze',
+            _sortTile(SortMode.oldest, 'Najstarsze na górze',
                 Icons.arrow_upward),
             _sortTile(SortMode.alphabetical, 'Alfabetycznie A-Z',
                 Icons.sort_by_alpha),
@@ -459,13 +459,13 @@ class _FoldersScreenState extends State<FoldersScreen> {
   Widget _buildSearchResults() {
     if (_searchCtrl.text.trim().isEmpty) {
       return Center(
-        child: Text('Wpisz tekst, aby wyszukac',
+        child: Text('Wpisz tekst, aby wyszukać',
             style: TextStyle(color: Theme.of(context).colorScheme.outline)),
       );
     }
     if (_searchResults.isEmpty) {
       return Center(
-        child: Text('Brak wynikow',
+        child: Text('Brak wyników',
             style: TextStyle(color: Theme.of(context).colorScheme.outline)),
       );
     }
