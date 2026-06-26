@@ -139,10 +139,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
     final confirm = await showDialog<bool>(
       context: context,
       builder: (_) => AlertDialog(
-        title: const Text('Importowac kopie?'),
+        title: const Text('Importować kopię?'),
         content: const Text(
-            'Import zastapi WSZYSTKIE obecne notatki i foldery danymi z pliku. '
-            'Tej operacji nie da sie cofnac. Kontynuowac?'),
+            'Import zastąpi WSZYSTKIE obecne notatki i foldery danymi z pliku. '
+            'Tej operacji nie da się cofnąć. Kontynuować?'),
         actions: [
           TextButton(
               onPressed: () => Navigator.pop(context, false),
@@ -177,7 +177,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     constraints: const BoxConstraints(maxWidth: 700),
                     child: ListView(
                       padding: EdgeInsets.fromLTRB(16, 16, 16,
-                          16 + MediaQuery.of(context).viewPadding.bottom + 24),
+                          16 + MediaQuery.of(context).viewPadding.bottom + 72),
                       children: [
                         Padding(
                           padding: const EdgeInsets.symmetric(
@@ -221,7 +221,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                             Icons.notifications_off),
                         _buildOption(
                             ReminderStyle.fullScreenAlarm,
-                            'Pelnoekranowy alarm',
+                            'Pełnoekranowy alarm',
                             'Alarm na caly ekran, jak budzik',
                             Icons.alarm),
 
@@ -248,7 +248,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                                 leading: const Icon(Icons.folder_open),
                                 title: const Text('Zapisz do folderu'),
                                 subtitle: const Text(
-                                    'Zapisz plik kopii w pamieci telefonu'),
+                                    'Zapisz plik kopii w pamięci telefonu'),
                                 onTap: _busy ? null : _exportToFolder,
                               ),
                               const Divider(height: 1),
@@ -256,7 +256,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                                 leading: const Icon(Icons.download),
                                 title: const Text('Importuj notatki'),
                                 subtitle: const Text(
-                                    'Wczytaj kopie z pliku (zastepuje obecne)'),
+                                    'Wczytaj kopię z pliku (zastępuje obecne)'),
                                 onTap: _busy ? null : _import,
                               ),
                             ],
@@ -279,8 +279,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
                                     const Icon(Icons.cloud_sync_outlined),
                                 title: const Text('Automatyczny backup'),
                                 subtitle: Text(_autoBackup
-                                    ? 'Wlaczony - kopia raz dziennie przy starcie'
-                                    : 'Wylaczony'),
+                                    ? 'Włączony - kopia raz dziennie przy starcie'
+                                    : 'Wyłączony'),
                                 value: _autoBackup,
                                 onChanged: _toggleAutoBackup,
                               ),
@@ -312,8 +312,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
                           Padding(
                             padding: const EdgeInsets.all(8),
                             child: Text(
-                              'Wskazowka: wybierz folder synchronizowany przez '
-                              'aplikacje Dysk Google, aby kopie trafialy do chmury. '
+                              'Wskazówka: wybierz folder synchronizowany przez '
+                              'aplikację Dysk Google, aby kopie trafiały do chmury. '
                               'Aplikacja trzyma 5 ostatnich kopii.',
                               style: Theme.of(context).textTheme.bodySmall
                                   ?.copyWith(
@@ -337,7 +337,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                               const SizedBox(width: 12),
                               Expanded(
                                 child: Text(
-                                  'Kopie warto zrobic przed zmiana telefonu. '
+                                  'Kopię warto zrobić przed zmianą telefonu. '
                                   'Plik mozesz wyslac sobie mailem lub zapisac na dysku.',
                                   style:
                                       Theme.of(context).textTheme.bodySmall,

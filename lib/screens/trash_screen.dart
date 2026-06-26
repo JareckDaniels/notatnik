@@ -42,15 +42,15 @@ class _TrashScreenState extends State<TrashScreen> {
     final confirm = await showDialog<bool>(
       context: context,
       builder: (_) => AlertDialog(
-        title: const Text('Usunac trwale?'),
-        content: const Text('Tej notatki nie da sie pozniej odzyskac.'),
+        title: const Text('Usunąć trwale?'),
+        content: const Text('Tej notatki nie da się później odzyskać.'),
         actions: [
           TextButton(
               onPressed: () => Navigator.pop(context, false),
               child: const Text('Anuluj')),
           FilledButton(
               onPressed: () => Navigator.pop(context, true),
-              child: const Text('Usun trwale')),
+              child: const Text('Usuń trwale')),
         ],
       ),
     );
@@ -64,9 +64,9 @@ class _TrashScreenState extends State<TrashScreen> {
     final confirm = await showDialog<bool>(
       context: context,
       builder: (_) => AlertDialog(
-        title: const Text('Oprozsnic caly kosz?'),
+        title: const Text('Opróżnić cały kosz?'),
         content: const Text(
-            'Wszystkie notatki z kosza zostana trwale usuniete. Nie da sie tego cofnac.'),
+            'Wszystkie notatki z kosza zostaną trwale usunięte. Nie da się tego cofnąć.'),
         actions: [
           TextButton(
               onPressed: () => Navigator.pop(context, false),
@@ -102,7 +102,7 @@ class _TrashScreenState extends State<TrashScreen> {
           if (_notes.isNotEmpty)
             IconButton(
               icon: const Icon(Icons.delete_forever),
-              tooltip: 'Oprozsnij kosz',
+              tooltip: 'Opróżnij kosz',
               onPressed: _emptyTrash,
             ),
         ],
@@ -131,7 +131,7 @@ class _TrashScreenState extends State<TrashScreen> {
                           Theme.of(context).colorScheme.surfaceContainerHighest,
                       padding: const EdgeInsets.all(12),
                       child: Text(
-                        'Notatki w koszu sa usuwane automatycznie po '
+                        'Notatki w koszu są usuwane automatycznie po '
                         '${DatabaseHelper.trashRetentionDays} dniach.',
                         style: Theme.of(context).textTheme.bodySmall,
                       ),
@@ -142,7 +142,7 @@ class _TrashScreenState extends State<TrashScreen> {
                           constraints: const BoxConstraints(maxWidth: 900),
                           child: ListView.builder(
                             padding: EdgeInsets.fromLTRB(12, 12, 12,
-                                12 + MediaQuery.of(context).viewPadding.bottom + 24),
+                                12 + MediaQuery.of(context).viewPadding.bottom + 72),
                             itemCount: _notes.length,
                             itemBuilder: (_, i) => _trashTile(_notes[i]),
                           ),
@@ -191,8 +191,8 @@ class _TrashScreenState extends State<TrashScreen> {
                 const SizedBox(width: 4),
                 Text(
                   daysLeft > 0
-                      ? 'Usuniecie za $daysLeft dni'
-                      : 'Usuniecie wkrotce',
+                      ? 'Usunięcie za $daysLeft dni'
+                      : 'Usunięcie wkrótce',
                   style: Theme.of(context).textTheme.labelSmall?.copyWith(
                       color: Theme.of(context).colorScheme.outline),
                 ),
@@ -200,12 +200,12 @@ class _TrashScreenState extends State<TrashScreen> {
                 TextButton.icon(
                   onPressed: () => _restore(note),
                   icon: const Icon(Icons.restore, size: 18),
-                  label: const Text('Przywroc'),
+                  label: const Text('Przywróć'),
                 ),
                 IconButton(
                   onPressed: () => _deletePermanently(note),
                   icon: const Icon(Icons.delete_forever, size: 20),
-                  tooltip: 'Usun trwale',
+                  tooltip: 'Usuń trwale',
                 ),
               ],
             ),

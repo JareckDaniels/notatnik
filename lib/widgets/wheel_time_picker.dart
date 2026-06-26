@@ -38,7 +38,7 @@ class _WheelTimePickerState extends State<WheelTimePicker> {
     final onSurface = Theme.of(context).colorScheme.onSurface;
 
     return AlertDialog(
-      title: const Text('Wybierz godzine'),
+      title: const Text('Wybierz godzinę'),
       content: SizedBox(
         height: 200,
         child: Row(

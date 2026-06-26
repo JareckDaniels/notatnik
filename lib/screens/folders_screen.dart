@@ -144,7 +144,7 @@ class _FoldersScreenState extends State<FoldersScreen> {
     }
     if (items.length > 5) {
       widgets.add(Text(
-        '+${items.length - 5} wiecej',
+        '+${items.length - 5} więcej',
         style: Theme.of(context)
             .textTheme
             .labelSmall
@@ -244,16 +244,16 @@ class _FoldersScreenState extends State<FoldersScreen> {
     final confirm = await showDialog<bool>(
       context: context,
       builder: (_) => AlertDialog(
-        title: const Text('Usunac folder?'),
+        title: const Text('Usunąć folder?'),
         content: Text(
-            'Folder "${folder.name}" zostanie usuniety. Notatki w nim trafia do listy bez folderu.'),
+            'Folder "${folder.name}" zostanie usunięty. Notatki w nim trafią do listy bez folderu.'),
         actions: [
           TextButton(
               onPressed: () => Navigator.pop(context, false),
               child: const Text('Anuluj')),
           FilledButton(
               onPressed: () => Navigator.pop(context, true),
-              child: const Text('Usun')),
+              child: const Text('Usuń')),
         ],
       ),
     );
@@ -268,7 +268,7 @@ class _FoldersScreenState extends State<FoldersScreen> {
     return showDialog<String>(
       context: context,
       builder: (_) => AlertDialog(
-        title: Text(initial == null ? 'Nowy folder' : 'Zmien nazwe'),
+        title: Text(initial == null ? 'Nowy folder' : 'Zmień nazwę'),
         content: TextField(
           controller: controller,
           autofocus: true,
@@ -309,7 +309,7 @@ class _FoldersScreenState extends State<FoldersScreen> {
                 Icons.arrow_upward),
             _sortTile(SortMode.alphabetical, 'Alfabetycznie A-Z',
                 Icons.sort_by_alpha),
-            _sortTile(SortMode.reminder, 'Wg przypomnienia (najblizsze)',
+            _sortTile(SortMode.reminder, 'Wg przypomnienia (najbliższe)',
                 Icons.notifications_active),
             const SizedBox(height: 8),
           ],
@@ -485,7 +485,7 @@ class _FoldersScreenState extends State<FoldersScreen> {
         constraints: const BoxConstraints(maxWidth: 900),
         child: ListView(
           padding: EdgeInsets.fromLTRB(
-              12, 12, 12, 12 + MediaQuery.of(context).viewPadding.bottom + 24),
+              12, 12, 12, 12 + MediaQuery.of(context).viewPadding.bottom + 72),
           children: [
             // --- LUZNE NOTATKI (nad folderami) ---
             if (_looseNotes.isNotEmpty) ...[
@@ -543,10 +543,10 @@ class _FoldersScreenState extends State<FoldersScreen> {
                           size: 72,
                           color: Theme.of(context).colorScheme.outline),
                       const SizedBox(height: 12),
-                      Text('Brak notatek i folderow',
+                      Text('Brak notatek i folderów',
                           style: Theme.of(context).textTheme.titleMedium),
                       const SizedBox(height: 4),
-                      Text('Dodaj cos przyciskami w prawym dolnym rogu',
+                      Text('Dodaj coś przyciskami w prawym dolnym rogu',
                           style: TextStyle(
                               color:
                                   Theme.of(context).colorScheme.outline)),
@@ -595,21 +595,21 @@ class _FoldersScreenState extends State<FoldersScreen> {
                         child: Row(children: [
                           Icon(Icons.note_add_outlined, size: 20),
                           SizedBox(width: 8),
-                          Text('Dodaj notatke')
+                          Text('Dodaj notatkę')
                         ])),
                     const PopupMenuItem(
                         value: 'rename',
                         child: Row(children: [
                           Icon(Icons.edit_outlined, size: 20),
                           SizedBox(width: 8),
-                          Text('Zmien nazwe')
+                          Text('Zmień nazwę')
                         ])),
                     const PopupMenuItem(
                         value: 'delete',
                         child: Row(children: [
                           Icon(Icons.delete_outline, size: 20),
                           SizedBox(width: 8),
-                          Text('Usun')
+                          Text('Usuń')
                         ])),
                   ],
                 ),
@@ -750,7 +750,7 @@ class _FoldersScreenState extends State<FoldersScreen> {
                           Flexible(
                             child: Text(
                                 reminderPast
-                                    ? '$reminderText (minelo)'
+                                    ? '$reminderText (minęło)'
                                     : reminderText!,
                                 style: Theme.of(context)
                                     .textTheme
@@ -810,7 +810,7 @@ class _FoldersScreenState extends State<FoldersScreen> {
                     child: Row(children: [
                       Icon(Icons.delete_outline, size: 20),
                       SizedBox(width: 8),
-                      Text('Usun'),
+                      Text('Usuń'),
                     ]),
                   ),
                 ],

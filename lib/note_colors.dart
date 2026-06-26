@@ -26,7 +26,7 @@ class NoteColors {
   ];
 
   static const List<String> names = [
-    'Domyslny',
+    'Domyślny',
     'Czerwony',
     'Pomaranczowy',
     'Zolty',

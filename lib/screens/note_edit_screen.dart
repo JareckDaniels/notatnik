@@ -130,7 +130,7 @@ class _NoteEditScreenState extends State<NoteEditScreen> {
       initialDate: initialDate,
       firstDate: now,
       lastDate: now.add(const Duration(days: 365 * 10)),
-      helpText: 'Wybierz dzien przypomnienia',
+      helpText: 'Wybierz dzień przypomnienia',
     );
     if (date == null) return;
     if (!mounted) return;
@@ -148,7 +148,7 @@ class _NoteEditScreenState extends State<NoteEditScreen> {
     if (picked.isBefore(DateTime.now())) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Wybierz date w przyszlosci')),
+        const SnackBar(content: Text('Wybierz datę w przyszłości')),
       );
       return;
     }
@@ -166,15 +166,15 @@ class _NoteEditScreenState extends State<NoteEditScreen> {
       final confirm = await showDialog<bool>(
         context: context,
         builder: (_) => AlertDialog(
-          title: const Text('Odrzucic notatke?'),
-          content: const Text('Wpisane dane nie zostana zapisane.'),
+          title: const Text('Odrzucić notatkę?'),
+          content: const Text('Wpisane dane nie zostaną zapisane.'),
           actions: [
             TextButton(
                 onPressed: () => Navigator.pop(context, false),
                 child: const Text('Anuluj')),
             FilledButton(
                 onPressed: () => Navigator.pop(context, true),
-                child: const Text('Odrzuc')),
+                child: const Text('Odrzuć')),
           ],
         ),
       );
@@ -192,16 +192,16 @@ class _NoteEditScreenState extends State<NoteEditScreen> {
     final confirm = await showDialog<bool>(
       context: context,
       builder: (_) => AlertDialog(
-        title: const Text('Usunac do kosza?'),
+        title: const Text('Usunąć do kosza?'),
         content: const Text(
-            'Notatke mozna przywrocic z kosza w ciagu 30 dni.'),
+            'Notatkę można przywrócić z kosza w ciągu 30 dni.'),
         actions: [
           TextButton(
               onPressed: () => Navigator.pop(context, false),
               child: const Text('Anuluj')),
           FilledButton(
               onPressed: () => Navigator.pop(context, true),
-              child: const Text('Usun')),
+              child: const Text('Usuń')),
         ],
       ),
     );
@@ -398,7 +398,7 @@ class _NoteEditScreenState extends State<NoteEditScreen> {
         actions: [
           IconButton(
             icon: Icon(_isList ? Icons.subject : Icons.checklist),
-            tooltip: _isList ? 'Zmien na tekst' : 'Zmien na liste',
+            tooltip: _isList ? 'Zmień na tekst' : 'Zmień na listę',
             onPressed: _toggleListMode,
           ),
           IconButton(
@@ -411,12 +411,12 @@ class _NoteEditScreenState extends State<NoteEditScreen> {
           IconButton(
             icon: const Icon(Icons.delete_outline),
             tooltip:
-                widget.note != null ? 'Usun do kosza' : 'Odrzuc notatke',
+                widget.note != null ? 'Usuń do kosza' : 'Odrzuć notatkę',
             onPressed: widget.note != null ? _deleteNote : _discardNew,
           ),
           IconButton(
             icon: const Icon(Icons.share),
-            tooltip: 'Udostepnij',
+            tooltip: 'Udostępnij',
             onPressed: _shareNote,
           ),
         ],
@@ -426,13 +426,13 @@ class _NoteEditScreenState extends State<NoteEditScreen> {
           constraints: const BoxConstraints(maxWidth: 800),
           child: ListView(
             padding: EdgeInsets.fromLTRB(
-                16, 16, 16, 16 + MediaQuery.of(context).viewPadding.bottom + 24),
+                16, 16, 16, 16 + MediaQuery.of(context).viewPadding.bottom + 72),
             children: [
               TextField(
                 controller: _titleController,
                 style: Theme.of(context).textTheme.titleLarge,
                 decoration: const InputDecoration(
-                    hintText: 'Tytul', border: InputBorder.none),
+                    hintText: 'Tytuł', border: InputBorder.none),
                 textCapitalization: TextCapitalization.sentences,
               ),
               const Divider(),
@@ -443,7 +443,7 @@ class _NoteEditScreenState extends State<NoteEditScreen> {
                   maxLines: null,
                   minLines: 8,
                   decoration: const InputDecoration(
-                      hintText: 'Tresc notatki...',
+                      hintText: 'Treść notatki...',
                       border: InputBorder.none),
                   textCapitalization: TextCapitalization.sentences,
                 )
@@ -466,7 +466,7 @@ class _NoteEditScreenState extends State<NoteEditScreen> {
                                     Theme.of(context).textTheme.bodyLarge)),
                         IconButton(
                             icon: const Icon(Icons.close),
-                            tooltip: 'Usun przypomnienie',
+                            tooltip: 'Usuń przypomnienie',
                             onPressed: _clearReminder),
                       ]),
                       const SizedBox(height: 8),
@@ -476,7 +476,7 @@ class _NoteEditScreenState extends State<NoteEditScreen> {
                       icon: const Icon(Icons.alarm_add),
                       label: Text(reminderText == null
                           ? 'Ustaw przypomnienie'
-                          : 'Zmien termin'),
+                          : 'Zmień termin'),
                     ),
                     // Opcja budzika - tylko gdy przypomnienie ustawione
                     if (reminderText != null) ...[
@@ -489,7 +489,7 @@ class _NoteEditScreenState extends State<NoteEditScreen> {
                                 : Theme.of(context).colorScheme.outline),
                         title: const Text('Wybudzaj ekran'),
                         subtitle: const Text(
-                            'Podswietla ekran i pokazuje powiadomienie na pelnym ekranie'),
+                            'Podświetla ekran i pokazuje powiadomienie na pełnym ekranie'),
                         value: _forceAlarm,
                         onChanged: (v) => setState(() => _forceAlarm = v),
                       ),
@@ -508,7 +508,7 @@ class _NoteEditScreenState extends State<NoteEditScreen> {
                 onToggle: () =>
                     setState(() => _colorExpanded = !_colorExpanded),
                 subtitle: _colorIndex == 0
-                    ? 'Domyslny'
+                    ? 'Domyślny'
                     : NoteColors.names[_colorIndex],
                 child: Wrap(
                   spacing: 10,
@@ -617,7 +617,7 @@ class _NoteEditScreenState extends State<NoteEditScreen> {
                     decoration: InputDecoration(
                       isDense: true,
                       border: InputBorder.none,
-                      hintText: isEmptyLast ? 'Dodaj pozycje...' : null,
+                      hintText: isEmptyLast ? 'Dodaj pozycję...' : null,
                     ),
                     textCapitalization: TextCapitalization.sentences,
                     // Zatwierdzenie -> przejscie do nastepnej pozycji
