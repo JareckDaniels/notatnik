@@ -7,6 +7,7 @@ class SettingsStore {
   static const _sortKey = 'sort_mode';
   static const _themeKey = 'theme_mode';
   static const _startPageKey = 'start_page'; // 0 = notatki, 1 = kalendarz
+  static const _calViewKey = 'calendar_view'; // 0 = miesiac, 1 = tydzien
   static const _autoBackupKey = 'auto_backup_enabled';
   static const _autoBackupPathKey = 'auto_backup_path';
   static const _lastBackupKey = 'last_backup_ms';
@@ -44,6 +45,17 @@ class SettingsStore {
   static Future<void> setStartPage(int page) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setInt(_startPageKey, page);
+  }
+
+  // --- domyslny widok kalendarza (0 = miesiac, 1 = tydzien) ---
+  static Future<int> getCalendarView() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getInt(_calViewKey) ?? 0;
+  }
+
+  static Future<void> setCalendarView(int view) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setInt(_calViewKey, view);
   }
 
   // --- automatyczny backup ---

@@ -3,6 +3,7 @@ import 'package:intl/intl.dart';
 import '../note.dart';
 import '../database_helper.dart';
 import '../note_colors.dart';
+import '../settings_store.dart';
 import 'note_edit_screen.dart';
 
 class CalendarScreen extends StatefulWidget {
@@ -25,7 +26,15 @@ class CalendarScreenState extends State<CalendarScreen> {
   void initState() {
     super.initState();
     _wybranyDzien = _tylkoData(DateTime.now());
+    _wczytajWidok();
     load();
+  }
+
+  // Domyslny widok (miesiac/tydzien) z ustawien
+  Future<void> _wczytajWidok() async {
+    final v = await SettingsStore.getCalendarView();
+    if (!mounted) return;
+    setState(() => _widokTygodnia = v == 1);
   }
 
   // Publiczna, by rodzic mogl odswiezyc po zmianach w notatkach
@@ -442,7 +451,7 @@ class CalendarScreenState extends State<CalendarScreen> {
         ),
       ),
       child: Text(
-        tekst.isEmpty ? '(bez tytułu)' : tekst,
+        tekst.isEmpty ? 'Przypomnienie' : tekst,
         maxLines: 1,
         overflow: TextOverflow.ellipsis,
         style: TextStyle(
@@ -504,6 +513,13 @@ class CalendarScreenState extends State<CalendarScreen> {
     final minelo =
         n.reminderAt! < DateTime.now().millisecondsSinceEpoch;
 
+    // Gdy notatka nie ma tytulu, jako naglowek sluzy jej tresc
+    // (zamiast rzucajacego sie w oczy "(bez tytulu)").
+    final maTytul = n.title.trim().isNotEmpty;
+    final tresc = n.content.trim();
+    final naglowek = maTytul ? n.title.trim() : tresc;
+    final podtytul = maTytul ? tresc : '';
+
     return Card(
       color: kolor,
       margin: const EdgeInsets.only(bottom: 8),
@@ -530,16 +546,23 @@ class CalendarScreenState extends State<CalendarScreen> {
                         : Theme.of(context).colorScheme.primary)),
           ],
         ),
-        title: Text(
-          n.title.trim().isNotEmpty ? n.title : '(bez tytułu)',
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
-          style: const TextStyle(fontWeight: FontWeight.w600),
-        ),
-        subtitle: n.content.trim().isEmpty
+        title: naglowek.isEmpty
+            ? Text(
+                'Przypomnienie',
+                style: TextStyle(
+                    fontWeight: FontWeight.w600,
+                    color: Theme.of(context).colorScheme.outline),
+              )
+            : Text(
+                naglowek,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(fontWeight: FontWeight.w600),
+              ),
+        subtitle: podtytul.isEmpty
             ? null
             : Text(
-                n.content.trim(),
+                podtytul,
                 maxLines: 2,
                 overflow: TextOverflow.ellipsis,
               ),

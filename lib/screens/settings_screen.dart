@@ -22,6 +22,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
   String _appVersion = '';
   ThemeMode _themeMode = ThemeMode.system;
   int _startPage = 0;
+  int _calView = 0;
 
   @override
   void initState() {
@@ -31,6 +32,13 @@ class _SettingsScreenState extends State<SettingsScreen> {
     _loadVersion();
     _loadTheme();
     _loadStartPage();
+    _loadCalView();
+  }
+
+  Future<void> _loadCalView() async {
+    final v = await SettingsStore.getCalendarView();
+    if (!mounted) return;
+    setState(() => _calView = v);
   }
 
   Future<void> _loadStartPage() async {
@@ -246,6 +254,26 @@ class _SettingsScreenState extends State<SettingsScreen> {
                         Padding(
                           padding: const EdgeInsets.symmetric(
                               horizontal: 8, vertical: 8),
+                          child: Text('Widok kalendarza',
+                              style:
+                                  Theme.of(context).textTheme.titleMedium),
+                        ),
+                        Card(
+                          child: Column(
+                            children: [
+                              _buildCalViewOption(0, 'Miesiąc',
+                                  Icons.calendar_view_month),
+                              const Divider(height: 1),
+                              _buildCalViewOption(
+                                  1, 'Tydzień', Icons.calendar_view_week),
+                            ],
+                          ),
+                        ),
+
+                        const SizedBox(height: 24),
+                        Padding(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 8, vertical: 8),
                           child: Text('Rodzaj przypomnienia',
                               style:
                                   Theme.of(context).textTheme.titleMedium),
@@ -413,6 +441,24 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   ),
               ],
             ),
+    );
+  }
+
+  // Wybor domyslnego widoku kalendarza (0 = miesiac, 1 = tydzien)
+  Widget _buildCalViewOption(int view, String title, IconData icon) {
+    return RadioListTile<int>(
+      value: view,
+      groupValue: _calView,
+      onChanged: (v) async {
+        if (v == null) return;
+        setState(() => _calView = v);
+        await SettingsStore.setCalendarView(v);
+      },
+      title: Row(children: [
+        Icon(icon, size: 20),
+        const SizedBox(width: 12),
+        Text(title),
+      ]),
     );
   }
 
