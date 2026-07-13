@@ -232,6 +232,16 @@ class DatabaseHelper {
     return result.map((m) => Note.fromMap(m)).toList();
   }
 
+  // Notatki z ustawionym przypomnieniem (do widoku kalendarza),
+  // posortowane od najwczesniejszego terminu.
+  Future<List<Note>> getNotesWithReminders() async {
+    final db = await instance.database;
+    final result = await db.query('notes',
+        where: 'deletedAt IS NULL AND reminderAt IS NOT NULL',
+        orderBy: 'reminderAt ASC');
+    return result.map((m) => Note.fromMap(m)).toList();
+  }
+
   Future<List<Note>> searchNotes(String query,
       {SortMode sort = SortMode.manual}) async {
     final db = await instance.database;

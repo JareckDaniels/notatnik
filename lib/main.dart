@@ -5,7 +5,7 @@ import 'notification_service.dart';
 import 'database_helper.dart';
 import 'settings_store.dart';
 import 'backup_service.dart';
-import 'screens/folders_screen.dart';
+import 'screens/home_pager.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -111,7 +111,7 @@ class _NotatkiAppState extends State<NotatkiApp> {
         Locale('pl', 'PL'),
         Locale('en', 'US'),
       ],
-      home: const FoldersScreen(),
+      home: const HomePager(),
     );
   }
 }

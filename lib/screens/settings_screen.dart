@@ -21,6 +21,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
   int? _lastBackupMs;
   String _appVersion = '';
   ThemeMode _themeMode = ThemeMode.system;
+  int _startPage = 0;
 
   @override
   void initState() {
@@ -29,6 +30,13 @@ class _SettingsScreenState extends State<SettingsScreen> {
     _loadBackupSettings();
     _loadVersion();
     _loadTheme();
+    _loadStartPage();
+  }
+
+  Future<void> _loadStartPage() async {
+    final p = await SettingsStore.getStartPage();
+    if (!mounted) return;
+    setState(() => _startPage = p);
   }
 
   Future<void> _loadTheme() async {
@@ -205,6 +213,39 @@ class _SettingsScreenState extends State<SettingsScreen> {
                         Padding(
                           padding: const EdgeInsets.symmetric(
                               horizontal: 8, vertical: 8),
+                          child: Text('Pulpit startowy',
+                              style:
+                                  Theme.of(context).textTheme.titleMedium),
+                        ),
+                        Card(
+                          child: Column(
+                            children: [
+                              _buildStartPageOption(
+                                  0, 'Notatki', Icons.sticky_note_2_outlined),
+                              const Divider(height: 1),
+                              _buildStartPageOption(1, 'Kalendarz',
+                                  Icons.calendar_month_outlined),
+                            ],
+                          ),
+                        ),
+                        Padding(
+                          padding: const EdgeInsets.all(8),
+                          child: Text(
+                            'Między pulpitami przesuwasz palcem w bok.',
+                            style: Theme.of(context)
+                                .textTheme
+                                .bodySmall
+                                ?.copyWith(
+                                    color: Theme.of(context)
+                                        .colorScheme
+                                        .outline),
+                          ),
+                        ),
+
+                        const SizedBox(height: 24),
+                        Padding(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 8, vertical: 8),
                           child: Text('Rodzaj przypomnienia',
                               style:
                                   Theme.of(context).textTheme.titleMedium),
@@ -372,6 +413,24 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   ),
               ],
             ),
+    );
+  }
+
+  // Wybor pulpitu startowego (0 = notatki, 1 = kalendarz)
+  Widget _buildStartPageOption(int page, String title, IconData icon) {
+    return RadioListTile<int>(
+      value: page,
+      groupValue: _startPage,
+      onChanged: (v) async {
+        if (v == null) return;
+        setState(() => _startPage = v);
+        await SettingsStore.setStartPage(v);
+      },
+      title: Row(children: [
+        Icon(icon, size: 20),
+        const SizedBox(width: 12),
+        Text(title),
+      ]),
     );
   }
 
