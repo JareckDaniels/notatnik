@@ -567,18 +567,50 @@ class _FoldersScreenState extends State<FoldersScreen> {
     final notes = f.id != null ? (_folderNotes[f.id!] ?? []) : <Note>[];
     final allowReorder = _sort == SortMode.manual;
 
+    // Czy w folderze jest notatka z minionym przypomnieniem.
+    // Wazne zwlaszcza gdy folder jest zwiniety - inaczej przegapisz termin.
+    final teraz = DateTime.now().millisecondsSinceEpoch;
+    final minioneW = notes
+        .where((n) => n.reminderAt != null && n.reminderAt! < teraz)
+        .length;
+    final maMinione = minioneW > 0;
+
     return Column(
       key: key,
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Card(
+          // Blado czerwone tlo, gdy folder kryje przeterminowane przypomnienie
+          color: maMinione
+              ? Theme.of(context).colorScheme.error.withOpacity(0.13)
+              : null,
           child: ListTile(
             leading: Icon(
               f.expanded ? Icons.folder_open : Icons.folder,
-              color: Theme.of(context).colorScheme.primary,
+              color: maMinione
+                  ? Theme.of(context).colorScheme.error
+                  : Theme.of(context).colorScheme.primary,
             ),
             title: Text(f.name),
-            subtitle: Text('$count notatek'),
+            subtitle: maMinione
+                ? Row(
+                    children: [
+                      Icon(Icons.notification_important,
+                          size: 14,
+                          color: Theme.of(context).colorScheme.error),
+                      const SizedBox(width: 4),
+                      Expanded(
+                        child: Text(
+                          '$count notatek · $minioneW po terminie',
+                          style: TextStyle(
+                              color: Theme.of(context).colorScheme.error,
+                              fontWeight: FontWeight.w600),
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                    ],
+                  )
+                : Text('$count notatek'),
             onTap: () => _toggleFolderExpanded(f),
             trailing: Row(
               mainAxisSize: MainAxisSize.min,

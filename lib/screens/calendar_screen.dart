@@ -61,6 +61,34 @@ class CalendarScreenState extends State<CalendarScreen> {
 
   List<Note> _notatkiDnia(DateTime dzien) => _wgDnia[_tylkoData(dzien)] ?? [];
 
+  // Czy dzien ma jakies minione (przeterminowane) przypomnienie
+  bool _maMinione(DateTime dzien) {
+    final teraz = DateTime.now().millisecondsSinceEpoch;
+    return _notatkiDnia(dzien).any((n) => n.reminderAt! < teraz);
+  }
+
+  // Tlo kratki dnia:
+  // - blado czerwone, gdy jest choc jedno minione przypomnienie
+  // - blado zielone, gdy sa przypomnienia (wszystkie przyszle)
+  // - neutralne, gdy brak notatek
+  // Wybrany dzien dostaje mocniejszy odcien.
+  Color _tloDnia(DateTime dzien, bool wybrany) {
+    final notatki = _notatkiDnia(dzien);
+    final cs = Theme.of(context).colorScheme;
+
+    if (notatki.isEmpty) {
+      return wybrany
+          ? cs.primaryContainer.withOpacity(0.55)
+          : cs.surfaceContainerHighest.withOpacity(0.25);
+    }
+    if (_maMinione(dzien)) {
+      return cs.error.withOpacity(wybrany ? 0.30 : 0.16);
+    }
+    // Zielony akcent dla nadchodzacych
+    const zielen = Color(0xFF4CAF50);
+    return zielen.withOpacity(wybrany ? 0.32 : 0.18);
+  }
+
   void _poprzedni() {
     setState(() {
       if (_widokTygodnia) {
@@ -144,8 +172,8 @@ class CalendarScreenState extends State<CalendarScreen> {
           ? const Center(child: CircularProgressIndicator())
           : LayoutBuilder(
               builder: (context, constraints) {
-                // Kalendarz zajmuje ~57% wysokosci, reszta = lista dnia
-                final wysKalendarza = constraints.maxHeight * 0.57;
+                // Kalendarz zajmuje ~62% wysokosci, reszta = lista dnia
+                final wysKalendarza = constraints.maxHeight * 0.62;
                 return Column(
                   children: [
                     SizedBox(
@@ -225,112 +253,104 @@ class CalendarScreenState extends State<CalendarScreen> {
     );
   }
 
-  // Widok tygodnia: dni jeden pod drugim (czytelniej niz w poziomie)
+  // Widok tygodnia: 7 dni jeden pod drugim, dziela wysokosc po rowno
+  // (zawsze mieszcza sie bez przewijania).
   Widget _listaTygodnia(List<DateTime> dni) {
     final dzisiaj = _tylkoData(DateTime.now());
-    return ListView.builder(
+    return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-      itemCount: dni.length,
-      itemBuilder: (_, i) {
-        final dzien = dni[i];
-        final notatki = _notatkiDnia(dzien);
-        final wybrany = _wybranyDzien != null &&
-            _tylkoData(_wybranyDzien!) == dzien;
-        final jestDzis = dzien == dzisiaj;
-        final nazwaDnia = _zWielkiej(DateFormat('EEEE', 'pl').format(dzien));
+      child: Column(
+        children: dni.map((dzien) {
+          final notatki = _notatkiDnia(dzien);
+          final wybrany = _wybranyDzien != null &&
+              _tylkoData(_wybranyDzien!) == dzien;
+          final jestDzis = dzien == dzisiaj;
+          final nazwaDnia =
+              _zWielkiej(DateFormat('EEE', 'pl').format(dzien));
+          final tlo = _tloDnia(dzien, wybrany);
 
-        return GestureDetector(
-          onTap: () => setState(() => _wybranyDzien = dzien),
-          child: Container(
-            margin: const EdgeInsets.only(bottom: 6),
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-            decoration: BoxDecoration(
-              color: wybrany
-                  ? Theme.of(context)
-                      .colorScheme
-                      .primaryContainer
-                      .withOpacity(0.55)
-                  : Theme.of(context)
-                      .colorScheme
-                      .surfaceContainerHighest
-                      .withOpacity(0.3),
-              borderRadius: BorderRadius.circular(10),
-              border: jestDzis
-                  ? Border.all(
-                      color: Theme.of(context).colorScheme.primary,
-                      width: 1.5)
-                  : null,
-            ),
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // Data po lewej
-                SizedBox(
-                  width: 62,
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        '${dzien.day}',
-                        style: TextStyle(
-                          fontSize: 20,
-                          fontWeight: jestDzis
-                              ? FontWeight.bold
-                              : FontWeight.w600,
-                          color: jestDzis
-                              ? Theme.of(context).colorScheme.primary
-                              : Theme.of(context).colorScheme.onSurface,
-                        ),
-                      ),
-                      Text(
-                        nazwaDnia,
-                        style: TextStyle(
-                            fontSize: 11,
-                            color: Theme.of(context).colorScheme.outline),
-                      ),
-                    ],
-                  ),
+          return Expanded(
+            child: GestureDetector(
+              onTap: () => setState(() => _wybranyDzien = dzien),
+              child: Container(
+                margin: const EdgeInsets.only(bottom: 4),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                decoration: BoxDecoration(
+                  color: tlo,
+                  borderRadius: BorderRadius.circular(10),
+                  border: jestDzis
+                      ? Border.all(
+                          color: Theme.of(context).colorScheme.primary,
+                          width: 1.5)
+                      : null,
                 ),
-                // Notatki po prawej
-                Expanded(
-                  child: notatki.isEmpty
-                      ? Padding(
-                          padding: const EdgeInsets.only(top: 4),
-                          child: Text(
-                            '—',
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.center,
+                  children: [
+                    // Data po lewej (waska kolumna)
+                    SizedBox(
+                      width: 46,
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            '${dzien.day}',
                             style: TextStyle(
-                                fontSize: 13,
-                                color: Theme.of(context)
-                                    .colorScheme
-                                    .outline
-                                    .withOpacity(0.6)),
+                              fontSize: 17,
+                              height: 1.1,
+                              fontWeight: jestDzis
+                                  ? FontWeight.bold
+                                  : FontWeight.w600,
+                              color: jestDzis
+                                  ? Theme.of(context).colorScheme.primary
+                                  : Theme.of(context)
+                                      .colorScheme
+                                      .onSurface,
+                            ),
                           ),
-                        )
-                      : Column(
-                          crossAxisAlignment: CrossAxisAlignment.stretch,
-                          children: [
-                            for (final n in notatki.take(3))
-                              _miniNotatka(n, duza: true),
-                            if (notatki.length > 3)
-                              Padding(
-                                padding: const EdgeInsets.only(top: 2),
-                                child: Text(
-                                  '+${notatki.length - 3} więcej',
-                                  style: TextStyle(
-                                      fontSize: 11,
-                                      color: Theme.of(context)
-                                          .colorScheme
-                                          .outline),
-                                ),
-                              ),
-                          ],
-                        ),
+                          Text(
+                            nazwaDnia,
+                            style: TextStyle(
+                                fontSize: 10,
+                                height: 1.1,
+                                color:
+                                    Theme.of(context).colorScheme.outline),
+                          ),
+                        ],
+                      ),
+                    ),
+                    // Notatki po prawej
+                    Expanded(
+                      child: notatki.isEmpty
+                          ? const SizedBox.shrink()
+                          : Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              crossAxisAlignment:
+                                  CrossAxisAlignment.stretch,
+                              children: [
+                                for (final n in notatki.take(2))
+                                  _miniNotatka(n, duza: true),
+                                if (notatki.length > 2)
+                                  Text(
+                                    '+${notatki.length - 2} więcej',
+                                    style: TextStyle(
+                                        fontSize: 10,
+                                        color: Theme.of(context)
+                                            .colorScheme
+                                            .outline),
+                                  ),
+                              ],
+                            ),
+                    ),
+                  ],
                 ),
-              ],
+              ),
             ),
-          ),
-        );
-      },
+          );
+        }).toList(),
+      ),
     );
   }
 
@@ -360,15 +380,7 @@ class CalendarScreenState extends State<CalendarScreen> {
                       margin: const EdgeInsets.all(1.5),
                       padding: const EdgeInsets.all(2),
                       decoration: BoxDecoration(
-                        color: wybrany
-                            ? Theme.of(context)
-                                .colorScheme
-                                .primaryContainer
-                                .withOpacity(0.55)
-                            : Theme.of(context)
-                                .colorScheme
-                                .surfaceContainerHighest
-                                .withOpacity(0.25),
+                        color: _tloDnia(dzien, wybrany),
                         borderRadius: BorderRadius.circular(8),
                         border: jestDzis
                             ? Border.all(
