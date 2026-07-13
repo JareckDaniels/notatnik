@@ -172,8 +172,8 @@ class CalendarScreenState extends State<CalendarScreen> {
           ? const Center(child: CircularProgressIndicator())
           : LayoutBuilder(
               builder: (context, constraints) {
-                // Kalendarz zajmuje ~62% wysokosci, reszta = lista dnia
-                final wysKalendarza = constraints.maxHeight * 0.62;
+                // Kalendarz zajmuje 50% wysokosci, reszta = lista dnia
+                final wysKalendarza = constraints.maxHeight * 0.50;
                 return Column(
                   children: [
                     SizedBox(
@@ -321,25 +321,29 @@ class CalendarScreenState extends State<CalendarScreen> {
                         ],
                       ),
                     ),
-                    // Notatki po prawej
+                    // Notatki po prawej: pierwsza (skrocona) + licznik reszty
                     Expanded(
                       child: notatki.isEmpty
                           ? const SizedBox.shrink()
-                          : Column(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              crossAxisAlignment:
-                                  CrossAxisAlignment.stretch,
+                          : Row(
                               children: [
-                                for (final n in notatki.take(2))
-                                  _miniNotatka(n, duza: true),
-                                if (notatki.length > 2)
-                                  Text(
-                                    '+${notatki.length - 2} więcej',
-                                    style: TextStyle(
-                                        fontSize: 10,
-                                        color: Theme.of(context)
-                                            .colorScheme
-                                            .outline),
+                                Expanded(
+                                  child: _miniNotatka(notatki.first,
+                                      duza: true, maxZnakow: 20),
+                                ),
+                                if (notatki.length > 1)
+                                  Padding(
+                                    padding:
+                                        const EdgeInsets.only(left: 6),
+                                    child: Text(
+                                      '+${notatki.length - 1}',
+                                      style: TextStyle(
+                                          fontSize: 12,
+                                          fontWeight: FontWeight.w600,
+                                          color: Theme.of(context)
+                                              .colorScheme
+                                              .outline),
+                                    ),
                                   ),
                               ],
                             ),
@@ -407,23 +411,33 @@ class CalendarScreenState extends State<CalendarScreen> {
                                       .withOpacity(0.5),
                             ),
                           ),
+                          // Pierwsza notatka (bardzo krotka) + licznik reszty.
+                          // ClipRect pilnuje, by nic nie wyszlo poza kratke.
                           Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.stretch,
-                              children: [
-                                for (final n in notatki.take(2))
-                                  _miniNotatka(n),
-                                if (notatki.length > 2)
-                                  Text(
-                                    '+${notatki.length - 2}',
-                                    style: TextStyle(
-                                        fontSize: 8,
-                                        color: Theme.of(context)
-                                            .colorScheme
-                                            .outline),
+                            child: notatki.isEmpty
+                                ? const SizedBox.shrink()
+                                : ClipRect(
+                                    child: Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.stretch,
+                                      children: [
+                                        _miniNotatka(notatki.first,
+                                            maxZnakow: 5),
+                                        if (notatki.length > 1)
+                                          Text(
+                                            '+${notatki.length - 1}',
+                                            textAlign: TextAlign.center,
+                                            style: TextStyle(
+                                                fontSize: 8,
+                                                height: 1.1,
+                                                fontWeight: FontWeight.w600,
+                                                color: Theme.of(context)
+                                                    .colorScheme
+                                                    .outline),
+                                          ),
+                                      ],
+                                    ),
                                   ),
-                              ],
-                            ),
                           ),
                         ],
                       ),
@@ -440,20 +454,24 @@ class CalendarScreenState extends State<CalendarScreen> {
 
   // Malutki pasek z tytulem (lub poczatkiem tresci) notatki.
   // Ma wyrazne tlo i obwodke, zeby nie zlewac sie z kratka dnia.
-  Widget _miniNotatka(Note n, {bool duza = false}) {
+  Widget _miniNotatka(Note n, {bool duza = false, int? maxZnakow}) {
     final brightness = Theme.of(context).brightness;
     final wlasnyKolor = NoteColors.colorFor(n.colorIndex, brightness);
-    // Notatki bez wlasnego koloru dostaja kolor akcentu, by byly widoczne
     final baza = wlasnyKolor ??
         Theme.of(context).colorScheme.primaryContainer;
-    final tekst = n.title.trim().isNotEmpty
+    var tekst = n.title.trim().isNotEmpty
         ? n.title.trim()
         : n.content.trim().replaceAll('\n', ' ');
+    if (tekst.isEmpty) tekst = 'Przypomnienie';
+    // Obciecie do zadanej dlugosci, by nie rozpychalo kratki
+    if (maxZnakow != null && tekst.length > maxZnakow) {
+      tekst = '${tekst.substring(0, maxZnakow)}…';
+    }
 
     return Container(
-      margin: EdgeInsets.only(bottom: duza ? 3 : 1.5),
+      margin: EdgeInsets.only(bottom: duza ? 0 : 1),
       padding: EdgeInsets.symmetric(
-          horizontal: duza ? 6 : 3, vertical: duza ? 3 : 1.5),
+          horizontal: duza ? 6 : 3, vertical: duza ? 3 : 1),
       decoration: BoxDecoration(
         color: baza,
         borderRadius: BorderRadius.circular(duza ? 6 : 4),
@@ -463,11 +481,11 @@ class CalendarScreenState extends State<CalendarScreen> {
         ),
       ),
       child: Text(
-        tekst.isEmpty ? 'Przypomnienie' : tekst,
+        tekst,
         maxLines: 1,
         overflow: TextOverflow.ellipsis,
         style: TextStyle(
-          fontSize: duza ? 12.5 : 8.5,
+          fontSize: duza ? 12.5 : 8,
           height: 1.15,
           fontWeight: FontWeight.w500,
           color: Theme.of(context).colorScheme.onSurface,
