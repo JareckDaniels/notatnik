@@ -133,14 +133,31 @@ class CalendarScreenState extends State<CalendarScreen> {
       ),
       body: _loading
           ? const Center(child: CircularProgressIndicator())
-          : Column(
-              children: [
-                _pasekNawigacji(),
-                _naglowkiDni(),
-                _siatka(dni, wierszy),
-                const Divider(height: 1),
-                Expanded(child: _listaWybranegoDnia()),
-              ],
+          : LayoutBuilder(
+              builder: (context, constraints) {
+                // Kalendarz zajmuje ~57% wysokosci, reszta = lista dnia
+                final wysKalendarza = constraints.maxHeight * 0.57;
+                return Column(
+                  children: [
+                    SizedBox(
+                      height: wysKalendarza,
+                      child: Column(
+                        children: [
+                          _pasekNawigacji(),
+                          if (!_widokTygodnia) _naglowkiDni(),
+                          Expanded(
+                            child: _widokTygodnia
+                                ? _listaTygodnia(dni)
+                                : _siatka(dni, wierszy),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const Divider(height: 1),
+                    Expanded(child: _listaWybranegoDnia()),
+                  ],
+                );
+              },
             ),
     );
   }
@@ -199,22 +216,130 @@ class CalendarScreenState extends State<CalendarScreen> {
     );
   }
 
+  // Widok tygodnia: dni jeden pod drugim (czytelniej niz w poziomie)
+  Widget _listaTygodnia(List<DateTime> dni) {
+    final dzisiaj = _tylkoData(DateTime.now());
+    return ListView.builder(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+      itemCount: dni.length,
+      itemBuilder: (_, i) {
+        final dzien = dni[i];
+        final notatki = _notatkiDnia(dzien);
+        final wybrany = _wybranyDzien != null &&
+            _tylkoData(_wybranyDzien!) == dzien;
+        final jestDzis = dzien == dzisiaj;
+        final nazwaDnia = _zWielkiej(DateFormat('EEEE', 'pl').format(dzien));
+
+        return GestureDetector(
+          onTap: () => setState(() => _wybranyDzien = dzien),
+          child: Container(
+            margin: const EdgeInsets.only(bottom: 6),
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+            decoration: BoxDecoration(
+              color: wybrany
+                  ? Theme.of(context)
+                      .colorScheme
+                      .primaryContainer
+                      .withOpacity(0.55)
+                  : Theme.of(context)
+                      .colorScheme
+                      .surfaceContainerHighest
+                      .withOpacity(0.3),
+              borderRadius: BorderRadius.circular(10),
+              border: jestDzis
+                  ? Border.all(
+                      color: Theme.of(context).colorScheme.primary,
+                      width: 1.5)
+                  : null,
+            ),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Data po lewej
+                SizedBox(
+                  width: 62,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        '${dzien.day}',
+                        style: TextStyle(
+                          fontSize: 20,
+                          fontWeight: jestDzis
+                              ? FontWeight.bold
+                              : FontWeight.w600,
+                          color: jestDzis
+                              ? Theme.of(context).colorScheme.primary
+                              : Theme.of(context).colorScheme.onSurface,
+                        ),
+                      ),
+                      Text(
+                        nazwaDnia,
+                        style: TextStyle(
+                            fontSize: 11,
+                            color: Theme.of(context).colorScheme.outline),
+                      ),
+                    ],
+                  ),
+                ),
+                // Notatki po prawej
+                Expanded(
+                  child: notatki.isEmpty
+                      ? Padding(
+                          padding: const EdgeInsets.only(top: 4),
+                          child: Text(
+                            '—',
+                            style: TextStyle(
+                                fontSize: 13,
+                                color: Theme.of(context)
+                                    .colorScheme
+                                    .outline
+                                    .withOpacity(0.6)),
+                          ),
+                        )
+                      : Column(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
+                            for (final n in notatki.take(3))
+                              _miniNotatka(n, duza: true),
+                            if (notatki.length > 3)
+                              Padding(
+                                padding: const EdgeInsets.only(top: 2),
+                                child: Text(
+                                  '+${notatki.length - 3} więcej',
+                                  style: TextStyle(
+                                      fontSize: 11,
+                                      color: Theme.of(context)
+                                          .colorScheme
+                                          .outline),
+                                ),
+                              ),
+                          ],
+                        ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
   Widget _siatka(List<DateTime> dni, int wierszy) {
     final dzisiaj = _tylkoData(DateTime.now());
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 6),
       child: Column(
         children: List.generate(wierszy, (w) {
-          return SizedBox(
-            height: _widokTygodnia ? 92 : 78,
+          // Wiersze dziela dostepna wysokosc po rowno
+          return Expanded(
             child: Row(
               children: List.generate(7, (k) {
                 final idx = w * 7 + k;
                 if (idx >= dni.length) return const Expanded(child: SizedBox());
                 final dzien = dni[idx];
                 final notatki = _notatkiDnia(dzien);
-                final wMiesiacu = _widokTygodnia ||
-                    dzien.month == _widocznyMiesiac.month;
+                final wMiesiacu = dzien.month == _widocznyMiesiac.month;
                 final wybrany = _wybranyDzien != null &&
                     _tylkoData(_wybranyDzien!) == dzien;
                 final jestDzis = dzien == dzisiaj;
@@ -261,18 +386,15 @@ class CalendarScreenState extends State<CalendarScreen> {
                                       .withOpacity(0.5),
                             ),
                           ),
-                          // Miniaturki notatek (male literki)
                           Expanded(
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.stretch,
                               children: [
-                                for (final n in notatki.take(
-                                    _widokTygodnia ? 3 : 2))
+                                for (final n in notatki.take(2))
                                   _miniNotatka(n),
-                                if (notatki.length >
-                                    (_widokTygodnia ? 3 : 2))
+                                if (notatki.length > 2)
                                   Text(
-                                    '+${notatki.length - (_widokTygodnia ? 3 : 2)}',
+                                    '+${notatki.length - 2}',
                                     style: TextStyle(
                                         fontSize: 8,
                                         color: Theme.of(context)
@@ -295,28 +417,38 @@ class CalendarScreenState extends State<CalendarScreen> {
     );
   }
 
-  // Malutki pasek z tytulem (lub poczatkiem tresci) notatki w kratce dnia
-  Widget _miniNotatka(Note n) {
+  // Malutki pasek z tytulem (lub poczatkiem tresci) notatki.
+  // Ma wyrazne tlo i obwodke, zeby nie zlewac sie z kratka dnia.
+  Widget _miniNotatka(Note n, {bool duza = false}) {
     final brightness = Theme.of(context).brightness;
-    final kolor = NoteColors.colorFor(n.colorIndex, brightness);
+    final wlasnyKolor = NoteColors.colorFor(n.colorIndex, brightness);
+    // Notatki bez wlasnego koloru dostaja kolor akcentu, by byly widoczne
+    final baza = wlasnyKolor ??
+        Theme.of(context).colorScheme.primaryContainer;
     final tekst = n.title.trim().isNotEmpty
         ? n.title.trim()
         : n.content.trim().replaceAll('\n', ' ');
+
     return Container(
-      margin: const EdgeInsets.only(bottom: 1),
-      padding: const EdgeInsets.symmetric(horizontal: 2, vertical: 1),
+      margin: EdgeInsets.only(bottom: duza ? 3 : 1.5),
+      padding: EdgeInsets.symmetric(
+          horizontal: duza ? 6 : 3, vertical: duza ? 3 : 1.5),
       decoration: BoxDecoration(
-        color: (kolor ?? Theme.of(context).colorScheme.primaryContainer)
-            .withOpacity(0.85),
-        borderRadius: BorderRadius.circular(3),
+        color: baza,
+        borderRadius: BorderRadius.circular(duza ? 6 : 4),
+        border: Border.all(
+          color: Theme.of(context).colorScheme.outline.withOpacity(0.35),
+          width: 0.6,
+        ),
       ),
       child: Text(
-        tekst.isEmpty ? '—' : tekst,
+        tekst.isEmpty ? '(bez tytułu)' : tekst,
         maxLines: 1,
         overflow: TextOverflow.ellipsis,
         style: TextStyle(
-          fontSize: 8,
-          height: 1.1,
+          fontSize: duza ? 12.5 : 8.5,
+          height: 1.15,
+          fontWeight: FontWeight.w500,
           color: Theme.of(context).colorScheme.onSurface,
         ),
       ),
