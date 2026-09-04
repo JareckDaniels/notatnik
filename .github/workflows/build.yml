@@ -37,16 +37,26 @@ jobs:
           cp szablony/app_build.gradle.kts android/app/build.gradle.kts
           rm -f android/app/build.gradle
 
-      - name: Podbij wersje Kotlina
+      - name: Podbij wersje Kotlina i Android Gradle Plugin
         run: |
-          # shared_preferences wymaga nowszego Kotlina niz domyslny.
-          # Podbijamy w settings.gradle (Groovy) lub settings.gradle.kts.
+          # Ustawiamy komplet zgodnych wersji: AGP 8.3.0 + Kotlin 2.1.0.
+          # (domyslne wygenerowane wersje sa za stare i wzajemnie niezgodne)
           for f in android/settings.gradle android/settings.gradle.kts; do
             if [ -f "$f" ]; then
               sed -i 's/org.jetbrains.kotlin.android") version "[^"]*"/org.jetbrains.kotlin.android") version "2.1.0"/' "$f"
               sed -i 's/org.jetbrains.kotlin.android" version "[^"]*"/org.jetbrains.kotlin.android" version "2.1.0"/' "$f"
-              echo "Zaktualizowano Kotlin w $f:"
-              grep kotlin "$f" || true
+              sed -i 's/com.android.application") version "[^"]*"/com.android.application") version "8.3.0"/' "$f"
+              sed -i 's/com.android.application" version "[^"]*"/com.android.application" version "8.3.0"/' "$f"
+              echo "--- $f po zmianie ---"
+              grep -E "kotlin|android.application" "$f" || true
+            fi
+          done
+          # Gradle wrapper musi byc na tyle nowy, by obsluzyc AGP 8.3
+          for w in android/gradle/wrapper/gradle-wrapper.properties; do
+            if [ -f "$w" ]; then
+              sed -i 's#gradle-[0-9.]*-all.zip#gradle-8.4-all.zip#' "$w"
+              sed -i 's#gradle-[0-9.]*-bin.zip#gradle-8.4-bin.zip#' "$w"
+              echo "--- wrapper ---"; grep distributionUrl "$w"
             fi
           done
 
