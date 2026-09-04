@@ -23,12 +23,13 @@ jobs:
           distribution: 'temurin'
           java-version: '17'
 
-      # 3. Instalacja Fluttera
+      # 3. Instalacja Fluttera (przypięta wersja - bez 'stable',
+      #    by nie pobrać nowszej niż obsługują pliki android)
       - name: Ustaw Flutter
         uses: subosito/flutter-action@v2
         with:
-          channel: 'stable'
           flutter-version: '3.24.0'
+          cache: true
 
       # 4. Odtworzenie klucza podpisujacego z sekretow
       - name: Przygotuj klucz podpisujacy
