@@ -60,10 +60,22 @@ jobs:
             fi
           done
 
-      - name: Ustaw nazwe aplikacji
+      - name: Wgraj wlasne ikony
         run: |
-          sed -i 's/android:label="[^"]*"/android:label="Notatki"/' \
-            android/app/src/main/AndroidManifest.xml
+          # flutter create nadpisuje ikony domyslnymi Fluttera - przywracamy nasze
+          for d in mdpi hdpi xhdpi xxhdpi xxxhdpi; do
+            cp ikony/mipmap-$d/ic_launcher.png \
+              android/app/src/main/res/mipmap-$d/ic_launcher.png
+          done
+          echo "Ikony przywrocone"
+
+      - name: Wgraj nasz AndroidManifest (uprawnienia do alarmow)
+        run: |
+          # flutter create generuje czysty manifest - bez naszych uprawnien
+          # (dokladne alarmy, powiadomienia, odbiorniki po restarcie) i nazwy.
+          cp szablony/AndroidManifest.xml android/app/src/main/AndroidManifest.xml
+          echo "Manifest przywrocony. Uprawnienia:"
+          grep -c "uses-permission" android/app/src/main/AndroidManifest.xml
 
       - name: Odtworz klucz podpisujacy
         run: |
