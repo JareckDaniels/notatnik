@@ -8,6 +8,7 @@ class SettingsStore {
   static const _themeKey = 'theme_mode';
   static const _startPageKey = 'start_page'; // 0 = notatki, 1 = kalendarz
   static const _calViewKey = 'calendar_view'; // 0 = miesiac, 1 = tydzien
+  static const _foldersTopKey = 'folders_top'; // true = foldery nad notatkami
   static const _autoBackupKey = 'auto_backup_enabled';
   static const _autoBackupPathKey = 'auto_backup_path';
   static const _lastBackupKey = 'last_backup_ms';
@@ -56,6 +57,17 @@ class SettingsStore {
   static Future<void> setCalendarView(int view) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setInt(_calViewKey, view);
+  }
+
+  // --- pozycja folderow: true = nad notatkami, false = pod notatkami ---
+  static Future<bool> getFoldersTop() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getBool(_foldersTopKey) ?? true;
+  }
+
+  static Future<void> setFoldersTop(bool top) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(_foldersTopKey, top);
   }
 
   // --- automatyczny backup ---

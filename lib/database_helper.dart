@@ -247,6 +247,17 @@ class DatabaseHelper {
     return result.map((m) => Note.fromMap(m)).toList();
   }
 
+  // Notatki z przypomnieniem, ktorego termin juz minal (po czasie)
+  Future<List<Note>> getOverdueNotes() async {
+    final db = await instance.database;
+    final teraz = DateTime.now().millisecondsSinceEpoch;
+    final result = await db.query('notes',
+        where: 'deletedAt IS NULL AND reminderAt IS NOT NULL AND reminderAt < ?',
+        whereArgs: [teraz],
+        orderBy: 'reminderAt ASC');
+    return result.map((m) => Note.fromMap(m)).toList();
+  }
+
   Future<List<Note>> searchNotes(String query,
       {SortMode sort = SortMode.manual}) async {
     final db = await instance.database;

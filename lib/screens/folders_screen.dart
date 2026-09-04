@@ -8,6 +8,7 @@ import '../notification_service.dart';
 import '../note_colors.dart';
 import '../settings_store.dart';
 import 'note_edit_screen.dart';
+import 'overdue_screen.dart';
 import 'settings_screen.dart';
 import 'trash_screen.dart';
 
@@ -26,6 +27,8 @@ class _FoldersScreenState extends State<FoldersScreen> {
   SortMode _sort = SortMode.manual;
   int _trashCount = 0;
   bool _loading = true;
+  bool _foldersTop = true; // foldery nad notatkami (z ustawien)
+  int _overdueCount = 0; // ile przypomnien po terminie
 
   // Wyszukiwanie
   bool _searching = false;
@@ -46,6 +49,7 @@ class _FoldersScreenState extends State<FoldersScreen> {
 
   Future<void> _init() async {
     _sort = await SettingsStore.getSortMode();
+    _foldersTop = await SettingsStore.getFoldersTop();
     await _load();
     // Reaguj na tapniecia powiadomien w trakcie dzialania apki
     NotificationService.setOnNotificationTap(_openPendingNote);
@@ -75,6 +79,7 @@ class _FoldersScreenState extends State<FoldersScreen> {
     final loose =
         await DatabaseHelper.instance.getNotes(noFolder: true, sort: _sort);
     final trashCount = await DatabaseHelper.instance.countTrash();
+    final overdue = await DatabaseHelper.instance.getOverdueNotes();
 
     _folderNotes.clear();
     _counts.clear();
@@ -91,6 +96,7 @@ class _FoldersScreenState extends State<FoldersScreen> {
       _folders = folders;
       _looseNotes = loose;
       _trashCount = trashCount;
+      _overdueCount = overdue.length;
       _loading = false;
     });
   }
@@ -451,6 +457,8 @@ class _FoldersScreenState extends State<FoldersScreen> {
                       MaterialPageRoute(
                           builder: (_) => const SettingsScreen()),
                     );
+                    // Ustawienia mogly zmienic pozycje folderow
+                    _foldersTop = await SettingsStore.getFoldersTop();
                     _load();
                   },
                 ),
@@ -509,6 +517,57 @@ class _FoldersScreenState extends State<FoldersScreen> {
   Widget _buildMainList() {
     final allowReorder = _sort == SortMode.manual;
 
+    // Sekcja luznych notatek
+    final sekcjaNotatek = <Widget>[
+      if (_looseNotes.isNotEmpty) ...[
+        if (allowReorder)
+          ReorderableListView(
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            buildDefaultDragHandles: false,
+            onReorder: (oldI, newI) => _reorderLoose(oldI, newI),
+            children: [
+              for (int i = 0; i < _looseNotes.length; i++)
+                _noteTile(_looseNotes[i],
+                    key: ValueKey('loose_${_looseNotes[i].id}'),
+                    reorderIndex: i),
+            ],
+          )
+        else
+          ..._looseNotes.map((n) => _noteTile(n)),
+        const SizedBox(height: 8),
+      ],
+    ];
+
+    // Sekcja folderow
+    final sekcjaFolderow = <Widget>[
+      if (_folders.isNotEmpty) ...[
+        Padding(
+          padding: const EdgeInsets.fromLTRB(8, 8, 8, 8),
+          child: Text('Foldery',
+              style: TextStyle(
+                  fontWeight: FontWeight.bold,
+                  color: Theme.of(context).colorScheme.outline)),
+        ),
+        if (allowReorder)
+          ReorderableListView(
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            buildDefaultDragHandles: false,
+            onReorder: (oldI, newI) => _reorderFolders(oldI, newI),
+            children: [
+              for (int i = 0; i < _folders.length; i++)
+                _folderBlock(_folders[i],
+                    key: ValueKey('folder_${_folders[i].id}'),
+                    reorderIndex: i),
+            ],
+          )
+        else
+          ..._folders.map((f) => _folderBlock(f)),
+        const SizedBox(height: 8),
+      ],
+    ];
+
     return Center(
       child: ConstrainedBox(
         constraints: const BoxConstraints(maxWidth: 900),
@@ -516,50 +575,16 @@ class _FoldersScreenState extends State<FoldersScreen> {
           padding: EdgeInsets.fromLTRB(
               12, 12, 12, 12 + MediaQuery.of(context).viewPadding.bottom + 72),
           children: [
-            // --- LUZNE NOTATKI (nad folderami) ---
-            if (_looseNotes.isNotEmpty) ...[
-              if (allowReorder)
-                ReorderableListView(
-                  shrinkWrap: true,
-                  physics: const NeverScrollableScrollPhysics(),
-                  buildDefaultDragHandles: false,
-                  onReorder: (oldI, newI) => _reorderLoose(oldI, newI),
-                  children: [
-                    for (int i = 0; i < _looseNotes.length; i++)
-                      _noteTile(_looseNotes[i],
-                          key: ValueKey('loose_${_looseNotes[i].id}'),
-                          reorderIndex: i),
-                  ],
-                )
-              else
-                ..._looseNotes.map((n) => _noteTile(n)),
-              const SizedBox(height: 8),
-            ],
+            // Pasek: ile przypomnien po terminie (klikalny -> lista)
+            if (_overdueCount > 0) _pasekPoTerminie(),
 
-            // --- FOLDERY ---
-            if (_folders.isNotEmpty) ...[
-              Padding(
-                padding: const EdgeInsets.fromLTRB(8, 8, 8, 8),
-                child: Text('Foldery',
-                    style: TextStyle(
-                        fontWeight: FontWeight.bold,
-                        color: Theme.of(context).colorScheme.outline)),
-              ),
-              if (allowReorder)
-                ReorderableListView(
-                  shrinkWrap: true,
-                  physics: const NeverScrollableScrollPhysics(),
-                  buildDefaultDragHandles: false,
-                  onReorder: (oldI, newI) => _reorderFolders(oldI, newI),
-                  children: [
-                    for (int i = 0; i < _folders.length; i++)
-                      _folderBlock(_folders[i],
-                          key: ValueKey('folder_${_folders[i].id}'),
-                          reorderIndex: i),
-                  ],
-                )
-              else
-                ..._folders.map((f) => _folderBlock(f)),
+            // Kolejnosc zalezy od ustawienia "foldery na gorze/na dole"
+            if (_foldersTop) ...[
+              ...sekcjaFolderow,
+              ...sekcjaNotatek,
+            ] else ...[
+              ...sekcjaNotatek,
+              ...sekcjaFolderow,
             ],
 
             if (_looseNotes.isEmpty && _folders.isEmpty)
@@ -591,6 +616,69 @@ class _FoldersScreenState extends State<FoldersScreen> {
   }
 
   // Blok folderu: naglowek + (jesli otwarty) notatki pod spodem
+  // Pasek z liczba zaleglych przypomnien; klikniecie otwiera ich liste
+  Widget _pasekPoTerminie() {
+    final cs = Theme.of(context).colorScheme;
+    final slowo = _overdueCount == 1
+        ? 'przypomnienie'
+        : (_overdueCount % 10 >= 2 &&
+                _overdueCount % 10 <= 4 &&
+                (_overdueCount % 100 < 10 || _overdueCount % 100 >= 20)
+            ? 'przypomnienia'
+            : 'przypomnień');
+
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 10),
+      child: Material(
+        color: cs.error.withOpacity(0.13),
+        borderRadius: BorderRadius.circular(12),
+        child: InkWell(
+          borderRadius: BorderRadius.circular(12),
+          onTap: () async {
+            await Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => const OverdueScreen()),
+            );
+            _load();
+          },
+          child: Padding(
+            padding:
+                const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+            child: Row(
+              children: [
+                Container(
+                  width: 30,
+                  height: 30,
+                  alignment: Alignment.center,
+                  decoration: BoxDecoration(
+                    color: cs.error,
+                    shape: BoxShape.circle,
+                  ),
+                  child: Text(
+                    '$_overdueCount',
+                    style: const TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 14),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Text(
+                    '$slowo po terminie',
+                    style: TextStyle(
+                        fontWeight: FontWeight.w600, color: cs.error),
+                  ),
+                ),
+                Icon(Icons.chevron_right, color: cs.error),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
   Widget _folderBlock(NoteFolder f, {Key? key, int? reorderIndex}) {
     final count = f.id != null ? (_counts[f.id!] ?? 0) : 0;
     final notes = f.id != null ? (_folderNotes[f.id!] ?? []) : <Note>[];

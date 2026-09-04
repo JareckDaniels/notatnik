@@ -23,6 +23,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
   ThemeMode _themeMode = ThemeMode.system;
   int _startPage = 0;
   int _calView = 0;
+  bool _foldersTop = true;
 
   @override
   void initState() {
@@ -33,6 +34,13 @@ class _SettingsScreenState extends State<SettingsScreen> {
     _loadTheme();
     _loadStartPage();
     _loadCalView();
+    _loadFoldersTop();
+  }
+
+  Future<void> _loadFoldersTop() async {
+    final v = await SettingsStore.getFoldersTop();
+    if (!mounted) return;
+    setState(() => _foldersTop = v);
   }
 
   Future<void> _loadCalView() async {
@@ -274,6 +282,30 @@ class _SettingsScreenState extends State<SettingsScreen> {
                         Padding(
                           padding: const EdgeInsets.symmetric(
                               horizontal: 8, vertical: 8),
+                          child: Text('Położenie folderów',
+                              style:
+                                  Theme.of(context).textTheme.titleMedium),
+                        ),
+                        Card(
+                          child: Column(
+                            children: [
+                              _buildFoldersPosOption(
+                                  true,
+                                  'Foldery na górze',
+                                  Icons.vertical_align_top),
+                              const Divider(height: 1),
+                              _buildFoldersPosOption(
+                                  false,
+                                  'Foldery na dole',
+                                  Icons.vertical_align_bottom),
+                            ],
+                          ),
+                        ),
+
+                        const SizedBox(height: 24),
+                        Padding(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 8, vertical: 8),
                           child: Text('Rodzaj przypomnienia',
                               style:
                                   Theme.of(context).textTheme.titleMedium),
@@ -441,6 +473,24 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   ),
               ],
             ),
+    );
+  }
+
+  // Wybor polozenia folderow (na gorze / na dole listy)
+  Widget _buildFoldersPosOption(bool top, String title, IconData icon) {
+    return RadioListTile<bool>(
+      value: top,
+      groupValue: _foldersTop,
+      onChanged: (v) async {
+        if (v == null) return;
+        setState(() => _foldersTop = v);
+        await SettingsStore.setFoldersTop(v);
+      },
+      title: Row(children: [
+        Icon(icon, size: 20),
+        const SizedBox(width: 12),
+        Text(title),
+      ]),
     );
   }
 
