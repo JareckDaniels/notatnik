@@ -32,7 +32,23 @@ jobs:
 
       - name: Wgraj nasz app/build.gradle.kts (ze stalym kluczem)
         run: |
+          # Nasz plik .kts zastepuje wygenerowany. Usuwamy stary .gradle (Groovy),
+          # bo gdy oba istnieja, Gradle ignoruje .kts.
           cp szablony/app_build.gradle.kts android/app/build.gradle.kts
+          rm -f android/app/build.gradle
+
+      - name: Podbij wersje Kotlina
+        run: |
+          # shared_preferences wymaga nowszego Kotlina niz domyslny.
+          # Podbijamy w settings.gradle (Groovy) lub settings.gradle.kts.
+          for f in android/settings.gradle android/settings.gradle.kts; do
+            if [ -f "$f" ]; then
+              sed -i 's/org.jetbrains.kotlin.android") version "[^"]*"/org.jetbrains.kotlin.android") version "2.1.0"/' "$f"
+              sed -i 's/org.jetbrains.kotlin.android" version "[^"]*"/org.jetbrains.kotlin.android" version "2.1.0"/' "$f"
+              echo "Zaktualizowano Kotlin w $f:"
+              grep kotlin "$f" || true
+            fi
+          done
 
       - name: Ustaw nazwe aplikacji
         run: |
