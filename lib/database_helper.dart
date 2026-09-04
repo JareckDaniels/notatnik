@@ -32,7 +32,7 @@ class DatabaseHelper {
     final path = join(dbPath, fileName);
     return await openDatabase(
       path,
-      version: 6,
+      version: 7,
       onCreate: _createDB,
       onUpgrade: _upgradeDB,
     );
@@ -53,7 +53,8 @@ class DatabaseHelper {
         deletedAt INTEGER,
         forceAlarm INTEGER NOT NULL DEFAULT 0,
         isList INTEGER NOT NULL DEFAULT 0,
-        listItems TEXT NOT NULL DEFAULT '[]'
+        listItems TEXT NOT NULL DEFAULT '[]',
+        locked INTEGER NOT NULL DEFAULT 0
       )
     ''');
     await db.execute('''
@@ -112,6 +113,10 @@ class DatabaseHelper {
           'ALTER TABLE notes ADD COLUMN isList INTEGER NOT NULL DEFAULT 0');
       await db.execute(
           "ALTER TABLE notes ADD COLUMN listItems TEXT NOT NULL DEFAULT '[]'");
+    }
+    if (oldVersion < 7) {
+      await db.execute(
+          'ALTER TABLE notes ADD COLUMN locked INTEGER NOT NULL DEFAULT 0');
     }
   }
 

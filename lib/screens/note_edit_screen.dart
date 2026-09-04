@@ -30,6 +30,7 @@ class _NoteEditScreenState extends State<NoteEditScreen> {
   final List<FocusNode> _itemFocusNodes = [];
   int _colorIndex = 0;
   bool _pinned = false;
+  bool _locked = false;
   int? _folderId;
   List<NoteFolder> _folders = [];
   // Stan rozwiniecia zwijanych sekcji
@@ -50,6 +51,7 @@ class _NoteEditScreenState extends State<NoteEditScreen> {
     _colorIndex = widget.note?.colorIndex ?? 0;
     _forceAlarm = widget.note?.forceAlarm ?? false;
     _pinned = widget.note?.pinned ?? false;
+    _locked = widget.note?.locked ?? false;
     _folderId = widget.note?.folderId ?? widget.defaultFolderId;
     _isList = widget.note?.isList ?? false;
     _loadListItems();
@@ -236,6 +238,26 @@ class _NoteEditScreenState extends State<NoteEditScreen> {
   }
 
   // Przelacza miedzy trybem tekstowym a lista
+  // Przelacza blokade notatki i zapisuje od razu do bazy
+  Future<void> _toggleLock() async {
+    final nowy = !_locked;
+    setState(() => _locked = nowy);
+    if (widget.note?.id != null) {
+      final zaktualizowana = widget.note!.copyWith(locked: nowy);
+      await DatabaseHelper.instance.updateNote(zaktualizowana);
+    }
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(nowy
+              ? 'Notatka zablokowana — tylko podgląd'
+              : 'Notatka odblokowana'),
+          duration: const Duration(seconds: 2),
+        ),
+      );
+    }
+  }
+
   void _toggleListMode() {
     setState(() {
       if (!_isList) {
@@ -301,6 +323,12 @@ class _NoteEditScreenState extends State<NoteEditScreen> {
   }
 
   Future<void> _save({bool pop = true}) async {
+    // Zablokowana istniejaca notatka: nie zapisujemy zmian tresci
+    // (blokada = tylko podglad). Stan locked juz zapisany osobno.
+    if (_locked && widget.note != null) {
+      if (pop && mounted) Navigator.pop(context, true);
+      return;
+    }
     final title = _titleController.text.trim();
     final content = _contentController.text.trim();
     _syncItemsFromControllers();
@@ -345,6 +373,7 @@ class _NoteEditScreenState extends State<NoteEditScreen> {
         forceAlarm: _forceAlarm,
         isList: _isList,
         listItems: itemsJson,
+        locked: _locked,
       );
       await DatabaseHelper.instance.updateNote(updated);
       await NotificationService.instance.cancelReminder(widget.note!.id!);
@@ -396,23 +425,34 @@ class _NoteEditScreenState extends State<NoteEditScreen> {
           style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w400),
         ),
         actions: [
+          // Klodka - przelacza blokade (tylko dla istniejacej notatki)
+          if (widget.note != null)
+            IconButton(
+              icon: Icon(_locked ? Icons.lock : Icons.lock_open_outlined),
+              tooltip: _locked ? 'Odblokuj notatkę' : 'Zablokuj notatkę',
+              color: _locked ? Theme.of(context).colorScheme.primary : null,
+              onPressed: _toggleLock,
+            ),
           IconButton(
             icon: Icon(_isList ? Icons.subject : Icons.checklist),
             tooltip: _isList ? 'Zmień na tekst' : 'Zmień na listę',
-            onPressed: _toggleListMode,
+            onPressed: _locked ? null : _toggleListMode,
           ),
           IconButton(
             icon: Icon(_pinned ? Icons.push_pin : Icons.push_pin_outlined),
             tooltip: _pinned ? 'Odepnij' : 'Przypnij',
-            onPressed: () => setState(() => _pinned = !_pinned),
+            onPressed:
+                _locked ? null : () => setState(() => _pinned = !_pinned),
           ),
           // Kosz: dla istniejacej notatki -> do kosza,
-          // dla nowej -> odrzuc bez zapisu
+          // dla nowej -> odrzuc bez zapisu. Zablokowana notatka - nieaktywny.
           IconButton(
             icon: const Icon(Icons.delete_outline),
             tooltip:
                 widget.note != null ? 'Usuń do kosza' : 'Odrzuć notatkę',
-            onPressed: widget.note != null ? _deleteNote : _discardNew,
+            onPressed: _locked
+                ? null
+                : (widget.note != null ? _deleteNote : _discardNew),
           ),
           IconButton(
             icon: const Icon(Icons.share),
@@ -428,8 +468,36 @@ class _NoteEditScreenState extends State<NoteEditScreen> {
             padding: EdgeInsets.fromLTRB(
                 16, 16, 16, 16 + MediaQuery.of(context).viewPadding.bottom + 72),
             children: [
+              if (_locked)
+                Container(
+                  margin: const EdgeInsets.only(bottom: 8),
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: 12, vertical: 10),
+                  decoration: BoxDecoration(
+                    color: Theme.of(context)
+                        .colorScheme
+                        .primaryContainer
+                        .withOpacity(0.5),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: Row(
+                    children: [
+                      Icon(Icons.lock,
+                          size: 18,
+                          color: Theme.of(context).colorScheme.primary),
+                      const SizedBox(width: 8),
+                      const Expanded(
+                        child: Text(
+                          'Notatka zablokowana. Kliknij kłódkę, aby edytować.',
+                          style: TextStyle(fontSize: 13),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
               TextField(
                 controller: _titleController,
+                readOnly: _locked,
                 style: Theme.of(context).textTheme.titleLarge,
                 decoration: const InputDecoration(
                     hintText: 'Tytuł', border: InputBorder.none),
@@ -440,6 +508,7 @@ class _NoteEditScreenState extends State<NoteEditScreen> {
               if (!_isList)
                 TextField(
                   controller: _contentController,
+                  readOnly: _locked,
                   maxLines: null,
                   minLines: 8,
                   decoration: const InputDecoration(
@@ -599,12 +668,13 @@ class _NoteEditScreenState extends State<NoteEditScreen> {
                 else
                   Checkbox(
                     value: item.checked,
-                    onChanged: (_) => _toggleItem(i),
+                    onChanged: _locked ? null : (_) => _toggleItem(i),
                   ),
                 Expanded(
                   child: TextField(
                     controller: _itemControllers[i],
                     focusNode: _itemFocusNodes[i],
+                    readOnly: _locked,
                     textInputAction: TextInputAction.next,
                     style: TextStyle(
                       decoration: item.checked

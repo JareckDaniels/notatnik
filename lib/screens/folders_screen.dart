@@ -188,6 +188,18 @@ class _FoldersScreenState extends State<FoldersScreen> {
 
   Future<void> _deleteNote(Note note) async {
     if (note.id == null) return;
+    // Zablokowana notatka - nie usuwamy (ochrona przed przypadkiem)
+    if (note.locked) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Notatka jest zablokowana. Odblokuj, aby usunąć.'),
+            duration: Duration(seconds: 2),
+          ),
+        );
+      }
+      return;
+    }
     // Przypomnienie anulujemy - notatka idzie do kosza
     await NotificationService.instance.cancelReminder(note.id!);
     await DatabaseHelper.instance.moveToTrash(note.id!);
@@ -211,6 +223,23 @@ class _FoldersScreenState extends State<FoldersScreen> {
   Future<void> _togglePin(Note note) async {
     await DatabaseHelper.instance
         .updateNote(note.copyWith(pinned: !note.pinned));
+    _load();
+  }
+
+  // Przelacza blokade notatki z poziomu listy
+  Future<void> _toggleLock(Note note) async {
+    final nowy = !note.locked;
+    await DatabaseHelper.instance.updateNote(note.copyWith(locked: nowy));
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(nowy
+              ? 'Notatka zablokowana — tylko podgląd'
+              : 'Notatka odblokowana'),
+          duration: const Duration(seconds: 2),
+        ),
+      );
+    }
     _load();
   }
 
@@ -730,6 +759,14 @@ class _FoldersScreenState extends State<FoldersScreen> {
                                   color:
                                       Theme.of(context).colorScheme.primary),
                             ),
+                          if (note.locked)
+                            Padding(
+                              padding: const EdgeInsets.only(right: 4),
+                              child: Icon(Icons.lock,
+                                  size: 15,
+                                  color:
+                                      Theme.of(context).colorScheme.primary),
+                            ),
                           Expanded(
                             child: Text(
                               note.title,
@@ -744,12 +781,25 @@ class _FoldersScreenState extends State<FoldersScreen> {
                           ),
                         ],
                       ),
-                    if (note.title.isEmpty && note.pinned)
+                    if (note.title.isEmpty && (note.pinned || note.locked))
                       Padding(
                         padding: const EdgeInsets.only(bottom: 2),
-                        child: Icon(Icons.push_pin,
-                            size: 15,
-                            color: Theme.of(context).colorScheme.primary),
+                        child: Row(
+                          children: [
+                            if (note.pinned)
+                              Icon(Icons.push_pin,
+                                  size: 15,
+                                  color: Theme.of(context)
+                                      .colorScheme
+                                      .primary),
+                            if (note.locked)
+                              Icon(Icons.lock,
+                                  size: 15,
+                                  color: Theme.of(context)
+                                      .colorScheme
+                                      .primary),
+                          ],
+                        ),
                       ),
                     if (note.isList) ...[
                       if (note.title.isNotEmpty) const SizedBox(height: 4),
@@ -822,6 +872,7 @@ class _FoldersScreenState extends State<FoldersScreen> {
                 icon: const Icon(Icons.more_vert, size: 20),
                 onSelected: (v) {
                   if (v == 'pin') _togglePin(note);
+                  if (v == 'lock') _toggleLock(note);
                   if (v == 'delete') _deleteNote(note);
                 },
                 itemBuilder: (_) => [
@@ -837,12 +888,27 @@ class _FoldersScreenState extends State<FoldersScreen> {
                       Text(note.pinned ? 'Odepnij' : 'Przypnij'),
                     ]),
                   ),
-                  const PopupMenuItem(
-                    value: 'delete',
+                  PopupMenuItem(
+                    value: 'lock',
                     child: Row(children: [
-                      Icon(Icons.delete_outline, size: 20),
-                      SizedBox(width: 8),
-                      Text('Usuń'),
+                      Icon(note.locked ? Icons.lock_open_outlined : Icons.lock,
+                          size: 20),
+                      const SizedBox(width: 8),
+                      Text(note.locked ? 'Odblokuj' : 'Zablokuj'),
+                    ]),
+                  ),
+                  // Usuwanie niedostepne dla zablokowanej notatki
+                  PopupMenuItem(
+                    value: 'delete',
+                    enabled: !note.locked,
+                    child: Row(children: [
+                      Icon(Icons.delete_outline,
+                          size: 20,
+                          color: note.locked
+                              ? Theme.of(context).disabledColor
+                              : null),
+                      const SizedBox(width: 8),
+                      Text(note.locked ? 'Usuń (zablokowana)' : 'Usuń'),
                     ]),
                   ),
                 ],

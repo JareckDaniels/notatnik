@@ -13,6 +13,7 @@ class Note {
   final bool forceAlarm; // true = ta notatka dzwoni jak budzik niezaleznie od globalnego
   final bool isList; // true = notatka jest lista zadan
   final String listItems; // pozycje listy jako JSON (gdy isList)
+  final bool locked; // true = notatka zablokowana (tylko podglad)
 
   Note({
     this.id,
@@ -28,6 +29,7 @@ class Note {
     this.forceAlarm = false,
     this.isList = false,
     this.listItems = '[]',
+    this.locked = false,
   });
 
   // Konwersja do mapy (zapis do bazy)
@@ -46,6 +48,7 @@ class Note {
       'forceAlarm': forceAlarm ? 1 : 0,
       'isList': isList ? 1 : 0,
       'listItems': listItems,
+      'locked': locked ? 1 : 0,
     };
   }
 
@@ -65,6 +68,7 @@ class Note {
       forceAlarm: (map['forceAlarm'] as int?) == 1,
       isList: (map['isList'] as int?) == 1,
       listItems: (map['listItems'] as String?) ?? '[]',
+      locked: (map['locked'] as int?) == 1,
     );
   }
 
@@ -89,6 +93,7 @@ class Note {
     bool? forceAlarm,
     bool? isList,
     String? listItems,
+    bool? locked,
     bool clearReminder = false,
     bool clearDeleted = false,
     bool clearFolder = false,
@@ -107,6 +112,7 @@ class Note {
       forceAlarm: forceAlarm ?? this.forceAlarm,
       isList: isList ?? this.isList,
       listItems: listItems ?? this.listItems,
+      locked: locked ?? this.locked,
     );
   }
 }
