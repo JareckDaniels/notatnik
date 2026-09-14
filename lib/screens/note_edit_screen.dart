@@ -21,6 +21,8 @@ class NoteEditScreen extends StatefulWidget {
 class _NoteEditScreenState extends State<NoteEditScreen> {
   late TextEditingController _titleController;
   late TextEditingController _contentController;
+  // Ognisko pola tresci - by przy nowej notatce od razu pisac
+  final FocusNode _contentFocus = FocusNode();
   DateTime? _reminder;
   bool _forceAlarm = false;
   bool _isList = false;
@@ -114,6 +116,7 @@ class _NoteEditScreenState extends State<NoteEditScreen> {
   void dispose() {
     _titleController.dispose();
     _contentController.dispose();
+    _contentFocus.dispose();
     for (final c in _itemControllers) {
       c.dispose();
     }
@@ -508,6 +511,9 @@ class _NoteEditScreenState extends State<NoteEditScreen> {
               if (!_isList)
                 TextField(
                   controller: _contentController,
+                  focusNode: _contentFocus,
+                  // Nowa notatka: kursor od razu w tresci, z klawiatura
+                  autofocus: widget.note == null && !_locked,
                   readOnly: _locked,
                   maxLines: null,
                   minLines: 8,
