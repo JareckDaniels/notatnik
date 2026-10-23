@@ -55,6 +55,12 @@ class CalendarScreenState extends State<CalendarScreen> {
 
   DateTime _tylkoData(DateTime d) => DateTime(d.year, d.month, d.day);
 
+  // Dodawanie dni kalendarzowych przez konstruktor DateTime, zamiast przez
+  // Duration(days: ...). To chroni kalendarz przed przesunieciami podczas
+  // zmiany czasu letniego/zimowego (doba moze miec 23 lub 25 godzin).
+  DateTime _dodajDni(DateTime d, int dni) =>
+      DateTime(d.year, d.month, d.day + dni);
+
   // Pierwsza litera wielka (nazwy miesiecy/dni w polskim sa z malej)
   String _zWielkiej(String s) =>
       s.isEmpty ? s : s[0].toUpperCase() + s.substring(1);
@@ -92,8 +98,7 @@ class CalendarScreenState extends State<CalendarScreen> {
   void _poprzedni() {
     setState(() {
       if (_widokTygodnia) {
-        _widocznyMiesiac =
-            _widocznyMiesiac.subtract(const Duration(days: 7));
+        _widocznyMiesiac = _dodajDni(_widocznyMiesiac, -7);
       } else {
         _widocznyMiesiac = DateTime(
             _widocznyMiesiac.year, _widocznyMiesiac.month - 1, 1);
@@ -104,7 +109,7 @@ class CalendarScreenState extends State<CalendarScreen> {
   void _nastepny() {
     setState(() {
       if (_widokTygodnia) {
-        _widocznyMiesiac = _widocznyMiesiac.add(const Duration(days: 7));
+        _widocznyMiesiac = _dodajDni(_widocznyMiesiac, 7);
       } else {
         _widocznyMiesiac = DateTime(
             _widocznyMiesiac.year, _widocznyMiesiac.month + 1, 1);
@@ -124,19 +129,17 @@ class CalendarScreenState extends State<CalendarScreen> {
     if (_widokTygodnia) {
       // Tydzien zawierajacy _widocznyMiesiac (pon-niedz)
       final d = _widocznyMiesiac;
-      final poniedzialek = d.subtract(Duration(days: d.weekday - 1));
-      return List.generate(
-          7, (i) => _tylkoData(poniedzialek.add(Duration(days: i))));
+      final poniedzialek = _dodajDni(d, -(d.weekday - 1));
+      return List.generate(7, (i) => _dodajDni(poniedzialek, i));
     }
     // Pelny miesiac + dopelnienie
     final pierwszy =
         DateTime(_widocznyMiesiac.year, _widocznyMiesiac.month, 1);
     final startOffset = pierwszy.weekday - 1; // pon = 0
-    final start = pierwszy.subtract(Duration(days: startOffset));
+    final start = _dodajDni(pierwszy, -startOffset);
     // 6 tygodni = 42 dni (zawsze pokryje kazdy miesiac)
     final ile = 42;
-    return List.generate(
-        ile, (i) => _tylkoData(start.add(Duration(days: i))));
+    return List.generate(ile, (i) => _dodajDni(start, i));
   }
 
   @override
